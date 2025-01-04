@@ -131,9 +131,11 @@ class PlayerList():
                 try:
                     if float(self.list[i].comparison_splits[uig]) > float(self.list[i].splits[uig]):
                         print("new pb, overwriting splits...")
+                        app.save_splits_button.configure(bg="yellow")
                         self.list[i].comparison_splits = self.list[i].splits.copy()
                 except KeyError as e:
                     print(e, "no comparison found, overwriting splits...")
+                    app.save_splits_button.configure(bg="yellow")
                     self.list[i].comparison_splits = self.list[i].splits.copy()
         self.last_message_data = data
     
@@ -180,48 +182,60 @@ class App(tk.Tk):
         self.save_splits_button = tk.Button(self, text="Save", font=font_tuple, command=self.save_splits)
         self.save_splits_button.grid(column=1, row=0)
 
+        self.clear_splits_button = tk.Button(self, text="Clear", font=font_tuple, command=self.clear_splits)
+        self.clear_splits_button.grid(column=2, row=0)
+
         self.close_button = tk.Button(self, text="Close", font=font_tuple, command=self.close)
-        self.close_button.grid(column=2, row=0, sticky="e")
+        self.close_button.grid(column=3, row=0, sticky="e")
 
         self.target_player = tk.StringVar()
         self.target_player.set("Dacus")
         self.target_player_entry = tk.Entry(self, textvariable=self.target_player, justify="center")
-        self.target_player_entry.grid(columnspan=3)
+        self.target_player_entry.grid(columnspan=4)
 
         #temporary or debugging labels are commented out, they still exist put are not placed on the window
 
         self.text = tk.Label(self, text="Debug string", font=font_tuple,fg='WHITE', bg=self['bg'])
-        #self.text.grid(columnspan=3)
+        #self.text.grid(columnspan=4)
 
         self.racetype_label = tk.Label(self, text="Race type", font=font_tuple, fg='WHITE', bg=self['bg'])
-        #self.racetype_label.grid(columnspan=3)
+        #self.racetype_label.grid(columnspan=4)
 
         self.racestatus_label = tk.Label(self, text="Race status", font=font_tuple, fg='WHITE', bg=self['bg'])
-        #self.racestatus_label.grid(columnspan=3)
+        #self.racestatus_label.grid(columnspan=4)
 
         self.countdown_label = tk.Label(self, text="Countdown", font=font_tuple, fg='WHITE', bg=self['bg'])
-        self.countdown_label.grid(columnspan=3)
+        self.countdown_label.grid(columnspan=4)
 
         self.split_label = tk.Label(self, text="Splits", font="Consolas 18 bold", fg='WHITE', bg=self['bg'])
-        self.split_label.grid(columnspan=3)
+        self.split_label.grid(columnspan=4)
 
         self.grid_columnconfigure(1, weight=1)
+        self.grid_columnconfigure(2, weight=1)
 
         localip = self.find_local_ip()
         self.uri = "ws://{}/velocidrone".format(localip)
         if not localip: self.close()
 
         self.pl = PlayerList()
+        self.deiconify()
 
     def load_splits(self):
         cd = os.path.dirname(os.path.realpath(__file__))
         file = filedialog.askopenfile("rb", initialdir=cd)
         self.pl.set_player_splits(self.target_player.get(), pickle.load(file))
+        self.split_label.config(text="-", fg='WHITE')
 
     def save_splits(self):
         cd = os.path.dirname(os.path.realpath(__file__))
         file = filedialog.asksaveasfile("wb", initialdir=cd)
         pickle.dump(self.pl.get_player_splits(self.target_player.get()), file)
+        self.save_splits_button.configure(bg='SystemButtonFace')
+        self.split_label.config(text="-", fg='WHITE')
+
+    def clear_splits(self):
+        self.pl.set_player_splits(self.target_player.get(), {})
+        self.split_label.config(text="-", fg='WHITE')
 
     async def updater(self, interval): # used by one of the loop tasks to keep the tkinter window responsive
         while True:
