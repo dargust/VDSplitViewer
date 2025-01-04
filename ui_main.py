@@ -13,6 +13,7 @@ import win32gui
 import pickle
 import os
 
+# callback function used by win32gui to get the window dimensions of velocidrone
 bbox = (0,0,0,0)
 def callback(hwnd, extra):
     global bbox
@@ -27,24 +28,23 @@ def callback(hwnd, extra):
         print("\t    Size: (%d, %d)" % (w, h))
         bbox = (x,y,w,h)
 
+# keep websocket connection alive
 async def send_heartbeat(websocket):
     try:
         while True:
             await asyncio.sleep(10)
             await websocket.send("heartbeat")
-            #print("budump")
     except Exception as e:
         print(f"Error sending heartbeat: {e}")
 
 async def read_websocket(app):
-    pl = app.pl
+    pl = app.pl # stores all the split times and data for all the players found or loaded
     while True:
         try:
             async with websockets.connect(app.uri, ping_interval=None) as websocket:
                 heartbeat_task = asyncio.create_task(send_heartbeat(websocket))
                 async for message in websocket:
                     try:
-                        #print(message)
                         f = json.loads(message)
                         if "racedata" in f:
                             for pilot,data in f['racedata'].items():
@@ -76,7 +76,7 @@ async def read_websocket(app):
                 except asyncio.CancelledError:
                     pass
         except Exception as e:
-            await asyncio.sleep(1)
+            await asyncio.sleep(1) # if something goes wrong with the connection, don't spam connection attempts
             print(e)
 
 class Player():
@@ -115,7 +115,6 @@ class PlayerList():
                 old_time = float(self.list[i].comparison_splits[uig])
                 new_time = float(time)
                 split = new_time - old_time
-                #print("old time: {}, new time: {}, split time: {}".format(old_time, new_time, split))
                 colour = "red"
                 if split < 1.5: colour = "yellow"
                 if split <= 0.0: colour = "light green"
@@ -142,7 +141,6 @@ class PlayerList():
         self.list[i].comparison_splits = new_splits
 
 class App(tk.Tk):
-
     def __init__(self, loop, interval=1/60):
         super().__init__()
 
@@ -150,7 +148,7 @@ class App(tk.Tk):
         print(bbox)
 
         self.loop = loop
-        self.protocol("WM_DELETE_WINDOW", self.close)
+        self.protocol("WM_DELETE_WINDOW", self.close) # unsure if necessary 
         self.tasks = []
         self.tasks.append(loop.create_task(self.updater(interval)))
         self.tasks.append(loop.create_task(read_websocket(self)))
@@ -160,16 +158,14 @@ class App(tk.Tk):
         font_tuple = ("Segoe UI Light", 12, "normal")
 
         self.withdraw()
-        self.wm_title("VDSplits")
+        self.wm_title("VDSplitViewer")
         x = int(bbox[0]+bbox[2]/2)-window_x//2
         y = bbox[1]+130
         self.geometry(str(window_x)+"x"+str(window_y)+"+"+str(x)+"+"+str(y))
     
-        self.overrideredirect(1)
+        self.overrideredirect(1) # makes the border around the window disappear
 
-        self.deiconify()
-
-        self.attributes('-transparentcolor','#483269', '-topmost', 'True')
+        self.attributes('-transparentcolor','#483269', '-topmost', 'True') # make all items with this colour transparent
         self.configure(background='#483269')
 
         self.resizable(0,0)
@@ -186,6 +182,8 @@ class App(tk.Tk):
         self.target_player.set("Dacus")
         self.target_player_entry = tk.Entry(self, textvariable=self.target_player, justify="center")
         self.target_player_entry.grid(columnspan=3)
+
+        #temporary or debugging labels are commented out, they still exist put are not placed on the window
 
         self.text = tk.Label(self, text="Debug string", font=font_tuple,fg='WHITE', bg=self['bg'])
         #self.text.grid(columnspan=3)
@@ -220,7 +218,7 @@ class App(tk.Tk):
         file = filedialog.asksaveasfile("wb", initialdir=cd)
         pickle.dump(self.pl.get_player_splits(self.target_player.get()), file)
 
-    async def updater(self, interval):
+    async def updater(self, interval): # used by one of the loop tasks to keep the tkinter window responsive
         while True:
             self.update()
             await asyncio.sleep(interval)
@@ -235,7 +233,6 @@ class App(tk.Tk):
                 try:
                     process = psutil.Process(pid)
                     local_addr = f"{conn.laddr.ip}:{conn.laddr.port}" if conn.laddr else "N/A"
-                    #print(process.name(), local_addr)
                     if process.name() == "velocidrone.exe":
                         if local_addr.endswith("60003"):
                             return local_addr
