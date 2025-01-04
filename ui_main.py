@@ -2,6 +2,11 @@
 # Velocidrone Split Viewer # 
 # Dan Argust 2025          #
 ############################
+# velocidrone must be      #
+# running or the websocket #
+# will fail to connect and #
+# the app will terminate   #
+############################
 
 import tkinter as tk
 from tkinter import filedialog
