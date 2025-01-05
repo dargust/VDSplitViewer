@@ -124,7 +124,8 @@ class PlayerList():
                 if split < 1.5: colour = "yellow"
                 if split <= 0.0: colour = "light green"
                 if split <-1.5: colour = "green"
-                app.split_label.config(text="{:.3f}".format(split), fg=colour)
+                sign = "+" if split >= 0 else ""
+                app.split_label.config(text="{}{:.3f}".format(sign, split), fg=colour)
             except:
                 app.split_label.config(text="{:.3f}".format(float(time)))
             if finished:
