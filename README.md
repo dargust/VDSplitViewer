@@ -3,6 +3,8 @@ Python tkinter overlay for velocidrone
 
 ## usage:
 python ui_main.py
+or
+pythonw ui_main.py
 
 ## requirements:
 psutil -> pip install psutil
