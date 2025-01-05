@@ -289,7 +289,7 @@ class App(tk.Tk):
         self.pl.set_player_splits(self.target_player.get(), {})
         self.split_label.config(text="-", fg='WHITE')
         self.open_file = None
-        self.open_file_label.config(text="NA")
+        self.open_file_label.config(text="Filename: NA")
         self.open_file_time.config(text="PB: -")
     
     #def auto_save_change(self):
