@@ -3,7 +3,9 @@ Python tkinter overlay for velocidrone
 
 ## usage:
 python ui_main.py
-or
+
+or (to get rid of console window:)
+
 pythonw ui_main.py
 
 ## requirements:
