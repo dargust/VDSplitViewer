@@ -58,7 +58,7 @@ async def read_websocket(app):
                             countValue = f['countdown']['countValue']
                             if countValue == "0":
                                 countValue = "Go!"
-                            app.countdown_label.config(text=countValue)
+                            app.split_label.config(text=countValue, fg="WHITE")
                             message = f"Countdown: {countValue}"
                         elif "racestatus" in f:
                             raceAction = f['racestatus']['raceAction']
@@ -133,10 +133,19 @@ class PlayerList():
                         print("new pb, overwriting splits...")
                         app.save_splits_button.configure(bg="yellow")
                         self.list[i].comparison_splits = self.list[i].splits.copy()
+                        app.pb = self.list[i].splits[uig]
+                        app.open_file_time.config(text=f"PB: {app.pb}")
+                        if app.autosave.get() and app.open_file:
+                            app.save_splits(app.open_file)
+
                 except KeyError as e:
                     print(e, "no comparison found, overwriting splits...")
                     app.save_splits_button.configure(bg="yellow")
                     self.list[i].comparison_splits = self.list[i].splits.copy()
+                    app.pb = self.list[i].splits[uig]
+                    app.open_file_time.config(text=f"PB: {app.pb}")
+                    if app.autosave.get() and app.open_file:
+                        app.save_splits(app.open_file)
         self.last_message_data = data
     
     def get_player_splits(self, player_name):
@@ -188,6 +197,16 @@ class App(tk.Tk):
         self.close_button = tk.Button(self, text="Close", font=font_tuple, command=self.close)
         self.close_button.grid(column=3, row=0, sticky="e")
 
+        self.open_file = ""
+
+        self.open_file_label = tk.Label(self, text="Filename: NA", font=font_tuple, fg='WHITE', bg=self['bg'])
+        self.open_file_label.grid(row=1, column=0, columnspan=2)
+        self.open_file_time = tk.Label(self, text="PB: -", font=font_tuple, fg='WHITE', bg=self['bg'])
+        self.open_file_time.grid(row=1, column=2, columnspan=1)
+        self.autosave = tk.IntVar()
+        self.auto_save_toggle = tk.Checkbutton(self, text="Autosave", variable=self.autosave, anchor="w", font=font_tuple)#, fg='WHITE', bg=self['bg'])
+        self.auto_save_toggle.grid(row=1, column=3)
+
         self.target_player = tk.StringVar()
         self.target_player.set("Dacus")
         self.target_player_entry = tk.Entry(self, textvariable=self.target_player, justify="center")
@@ -205,7 +224,7 @@ class App(tk.Tk):
         #self.racestatus_label.grid(columnspan=4)
 
         self.countdown_label = tk.Label(self, text="Countdown", font=font_tuple, fg='WHITE', bg=self['bg'])
-        self.countdown_label.grid(columnspan=4)
+        #self.countdown_label.grid(columnspan=4)
 
         self.split_label = tk.Label(self, text="Splits", font="Consolas 18 bold", fg='WHITE', bg=self['bg'])
         self.split_label.grid(columnspan=4)
@@ -218,24 +237,44 @@ class App(tk.Tk):
         if not localip: self.close()
 
         self.pl = PlayerList()
+        self.pb = "-"
         self.deiconify()
 
-    def load_splits(self):
-        cd = os.path.dirname(os.path.realpath(__file__))
-        file = filedialog.askopenfile("rb", initialdir=cd)
-        self.pl.set_player_splits(self.target_player.get(), pickle.load(file))
+    def load_splits(self, filename=None):
+        if not filename:
+            cd = os.path.dirname(os.path.realpath(__file__))
+            file = filedialog.askopenfile("rb", initialdir=cd)
+            self.open_file = file.name
+            self.open_file_label.config(text=os.path.basename(file.name))
+        else:
+            file = open(filename, "rb")
+        file_splits = pickle.load(file)
+        self.pl.set_player_splits(self.target_player.get(), file_splits)
+        self.pb = file_splits[[*file_splits.keys()][-1]]
+        self.open_file_time.config(text=f"PB: {self.pb}")
         self.split_label.config(text="-", fg='WHITE')
 
-    def save_splits(self):
-        cd = os.path.dirname(os.path.realpath(__file__))
-        file = filedialog.asksaveasfile("wb", initialdir=cd)
+    def save_splits(self, filename=None):
+        if not filename:
+            cd = os.path.dirname(os.path.realpath(__file__))
+            file = filedialog.asksaveasfile("wb", initialdir=cd)
+            self.open_file = file.name
+            self.open_file_label.config(text=os.path.basename(file.name))
+        else:
+            file = open(filename, "wb")
         pickle.dump(self.pl.get_player_splits(self.target_player.get()), file)
         self.save_splits_button.configure(bg='SystemButtonFace')
-        self.split_label.config(text="-", fg='WHITE')
+        #self.split_label.config(text="-", fg='WHITE')
 
     def clear_splits(self):
         self.pl.set_player_splits(self.target_player.get(), {})
         self.split_label.config(text="-", fg='WHITE')
+        self.open_file = None
+        self.open_file_label.config(text="NA")
+        self.open_file_time.config(text="PB: -")
+    
+    #def auto_save_change(self):
+    #    print(self.autosave.get())
 
     async def updater(self, interval): # used by one of the loop tasks to keep the tkinter window responsive
         while True:
