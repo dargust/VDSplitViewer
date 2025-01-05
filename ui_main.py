@@ -124,7 +124,8 @@ class PlayerList():
                 if split < 1.5: colour = "yellow"
                 if split <= 0.0: colour = "light green"
                 if split <-1.5: colour = "green"
-                app.split_label.config(text="{:.3f}".format(split), fg=colour)
+                sign = "+" if split >= 0 else ""
+                app.split_label.config(text="{}{:.3f}".format(sign, split), fg=colour)
             except:
                 app.split_label.config(text="{:.3f}".format(float(time)))
             if finished:
@@ -134,7 +135,7 @@ class PlayerList():
                         app.save_splits_button.configure(bg="yellow")
                         self.list[i].comparison_splits = self.list[i].splits.copy()
                         app.pb = self.list[i].splits[uig]
-                        app.open_file_time.config(text=f"PB: {app.pb}")
+                        app.open_file_time.config(text=f"PB: {app.pb}s")
                         if app.autosave.get() and app.open_file:
                             app.save_splits(app.open_file)
 
@@ -143,7 +144,7 @@ class PlayerList():
                     app.save_splits_button.configure(bg="yellow")
                     self.list[i].comparison_splits = self.list[i].splits.copy()
                     app.pb = self.list[i].splits[uig]
-                    app.open_file_time.config(text=f"PB: {app.pb}")
+                    app.open_file_time.config(text=f"PB: {app.pb}s")
                     if app.autosave.get() and app.open_file:
                         app.save_splits(app.open_file)
         self.last_message_data = data
@@ -169,14 +170,14 @@ class App(tk.Tk):
         self.tasks.append(loop.create_task(self.updater(interval)))
         self.tasks.append(loop.create_task(read_websocket(self)))
 
-        window_x = 400
+        window_x = 510
         window_y = 160
-        font_tuple = ("Segoe UI Light", 12, "normal")
+        font_tuple = ("Consolas", 12, "normal")
 
         self.withdraw()
         self.wm_title("VDSplitViewer")
         x = int(bbox[0]+bbox[2]/2)-window_x//2
-        y = bbox[1]+130
+        y = bbox[1]+45
         self.geometry(str(window_x)+"x"+str(window_y)+"+"+str(x)+"+"+str(y))
     
         self.overrideredirect(1) # makes the border around the window disappear
@@ -186,36 +187,47 @@ class App(tk.Tk):
 
         self.resizable(0,0)
 
-        self.load_splits_button = tk.Button(self, text="Load", font=font_tuple, command=self.load_splits)
-        self.load_splits_button.grid(column=0, row=0)
-        self.save_splits_button = tk.Button(self, text="Save", font=font_tuple, command=self.save_splits)
-        self.save_splits_button.grid(column=1, row=0)
+        local_appdata_path = os.getenv('LOCALAPPDATA')
+        self.VDSplits_folder = os.path.join(local_appdata_path, "VDSplitviewerData")
+        os.makedirs(self.VDSplits_folder, exist_ok=True)
 
-        self.clear_splits_button = tk.Button(self, text="Clear", font=font_tuple, command=self.clear_splits)
-        self.clear_splits_button.grid(column=2, row=0)
+        self.load_splits_button = tk.Button(self, text="Load", height=1, width=9, font=font_tuple, command=self.load_splits)
+        self.load_splits_button.grid(column=0, row=0, sticky="w")
+        self.save_splits_button = tk.Button(self, text="Save", height=1, width=9, font=font_tuple, command=self.save_splits)
+        self.save_splits_button.grid(column=0, row=1, sticky="w")
 
-        self.close_button = tk.Button(self, text="Close", font=font_tuple, command=self.close)
+        self.clear_splits_button = tk.Button(self, text="Clear", height=1, width=9, font=font_tuple, command=self.clear_splits)
+        self.clear_splits_button.grid(column=3, row=1, sticky="e")
+
+        self.close_button = tk.Button(self, text="Close", height=1, width=9, font=font_tuple, command=self.close)
         self.close_button.grid(column=3, row=0, sticky="e")
 
         self.open_file = ""
 
         self.open_file_label = tk.Label(self, text="Filename: NA", font=font_tuple, fg='WHITE', bg=self['bg'])
-        self.open_file_label.grid(row=1, column=0, columnspan=2)
+        self.open_file_label.grid(row=2, column=0, columnspan=2, sticky="w")
         self.open_file_time = tk.Label(self, text="PB: -", font=font_tuple, fg='WHITE', bg=self['bg'])
-        self.open_file_time.grid(row=1, column=2, columnspan=1)
+        self.open_file_time.grid(row=3, column=0, columnspan=1, sticky="w")
         self.autosave = tk.IntVar()
-        self.auto_save_toggle = tk.Checkbutton(self, text="Autosave", variable=self.autosave, anchor="w", font=font_tuple)#, fg='WHITE', bg=self['bg'])
-        self.auto_save_toggle.grid(row=1, column=3)
+        self.autosave.set(1)
+        self.auto_save_toggle = tk.Checkbutton(self, text="Autosave", height=1, width=9, variable=self.autosave, anchor="w", font=font_tuple)#, fg='WHITE', bg=self['bg'])
+        self.auto_save_toggle.grid(row=2, column=3, sticky="e")
 
         self.target_player = tk.StringVar()
-        self.target_player.set("Dacus")
-        self.target_player_entry = tk.Entry(self, textvariable=self.target_player, justify="center")
-        self.target_player_entry.grid(columnspan=4)
+        self.target_player.set("Enter player here")
+        self.config_file_path = os.path.join(self.VDSplits_folder, "config.txt")
+        if os.path.exists(self.config_file_path):
+            cfg = json.load((open(self.config_file_path, "r")))
+            self.target_player.set(cfg['target player'])
+        else:
+            json.dump({'target player':'Enter player here'}, open(self.config_file_path, "w"))
+        self.target_player_entry = tk.Entry(self, textvariable=self.target_player, justify="center", font=font_tuple)
+        self.target_player_entry.grid(row=3, column=3, columnspan=1)
 
         #temporary or debugging labels are commented out, they still exist put are not placed on the window
 
         self.text = tk.Label(self, text="Debug string", font=font_tuple,fg='WHITE', bg=self['bg'])
-        #self.text.grid(columnspan=4)
+        #self.text.grid(row=4, columnspan=4)
 
         self.racetype_label = tk.Label(self, text="Race type", font=font_tuple, fg='WHITE', bg=self['bg'])
         #self.racetype_label.grid(columnspan=4)
@@ -241,36 +253,44 @@ class App(tk.Tk):
         self.deiconify()
 
     def load_splits(self, filename=None):
-        if not filename:
-            cd = os.path.dirname(os.path.realpath(__file__))
-            file = filedialog.askopenfile("rb", initialdir=cd)
-            self.open_file = file.name
-            self.open_file_label.config(text=os.path.basename(file.name))
+        if self.target_player.get() == "Enter player here":
+            print("No player selected")
         else:
-            file = open(filename, "rb")
-        file_splits = pickle.load(file)
-        self.pl.set_player_splits(self.target_player.get(), file_splits)
-        self.pb = file_splits[[*file_splits.keys()][-1]]
-        self.open_file_time.config(text=f"PB: {self.pb}")
-        self.split_label.config(text="-", fg='WHITE')
+            json.dump({'target player':self.target_player.get()}, open(self.config_file_path, "w"))
+            if not filename:
+                #cd = os.path.dirname(os.path.realpath(__file__))
+                file = filedialog.askopenfile("rb", initialdir=self.VDSplits_folder)
+                self.open_file = file.name
+                self.open_file_label.config(text=os.path.basename(file.name))
+            else:
+                file = open(filename, "rb")
+            file_splits = pickle.load(file)
+            self.pl.set_player_splits(self.target_player.get(), file_splits)
+            self.pb = file_splits[[*file_splits.keys()][-1]]
+            self.open_file_time.config(text=f"PB: {self.pb}s")
+            self.split_label.config(text="-", fg='WHITE')
 
     def save_splits(self, filename=None):
-        if not filename:
-            cd = os.path.dirname(os.path.realpath(__file__))
-            file = filedialog.asksaveasfile("wb", initialdir=cd)
-            self.open_file = file.name
-            self.open_file_label.config(text=os.path.basename(file.name))
+        if self.target_player.get() == "Enter player here":
+            print("No player selected")
         else:
-            file = open(filename, "wb")
-        pickle.dump(self.pl.get_player_splits(self.target_player.get()), file)
-        self.save_splits_button.configure(bg='SystemButtonFace')
-        #self.split_label.config(text="-", fg='WHITE')
+            json.dump({'target player':self.target_player.get()}, open(self.config_file_path, "w"))
+            if not filename:
+                #cd = os.path.dirname(os.path.realpath(__file__))
+                file = filedialog.asksaveasfile("wb", initialdir=self.VDSplits_folder)
+                self.open_file = file.name
+                self.open_file_label.config(text=os.path.basename(file.name))
+            else:
+                file = open(filename, "wb")
+            pickle.dump(self.pl.get_player_splits(self.target_player.get()), file)
+            self.save_splits_button.configure(bg='SystemButtonFace')
+            #self.split_label.config(text="-", fg='WHITE')
 
     def clear_splits(self):
         self.pl.set_player_splits(self.target_player.get(), {})
         self.split_label.config(text="-", fg='WHITE')
         self.open_file = None
-        self.open_file_label.config(text="NA")
+        self.open_file_label.config(text="Filename: NA")
         self.open_file_time.config(text="PB: -")
     
     #def auto_save_change(self):
@@ -299,6 +319,7 @@ class App(tk.Tk):
         return None
 
     def close(self):
+        json.dump({'target player':self.target_player.get()}, open(self.config_file_path, "w"))
         for task in self.tasks:
             task.cancel()
         self.loop.stop()
