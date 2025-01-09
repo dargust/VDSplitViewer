@@ -3,7 +3,7 @@ from websockets.asyncio.server import serve
 import re
 from datetime import datetime
 
-message_parser = re.compile(r"(.+) - (.+)")
+message_parser = re.compile(r"(.+) - INFO - b'(.+)'")
 
 async def send_after_delay(websocket, delay, message):
     await asyncio.sleep(delay)
@@ -23,8 +23,9 @@ async def echo(websocket):
             file_name = "messages.log"
             print(f"serving messages from {file_name}")
             with open(file_name, "r") as file:
+                lines = file.readlines()
                 first_time = None
-                for line in file:
+                for line in lines:
                     match = message_parser.match(line)
                     if match:
                         groups = match.groups()
@@ -36,6 +37,7 @@ async def echo(websocket):
                         else:
                             delay = (timestamp - first_time)
                         text = groups[1]
+                        print(delay, text)
                         task = asyncio.create_task(send_after_delay(websocket, float(delay), text))
                         task_list.append(task)
             for task in task_list:
