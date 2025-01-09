@@ -17,6 +17,7 @@ import psutil
 import win32gui
 import pickle
 import os
+import logging
 
 # callback function used by win32gui to get the window dimensions of velocidrone
 bbox = (0,0,0,0)
@@ -48,6 +49,7 @@ async def send_heartbeat(websocket):
 async def read_websocket(app):
     pl = app.pl # stores all the split times and data for all the players found or loaded
     first_run = True
+    last_message = ""
     while True:
         try:
             async with websockets.connect(app.uri, ping_interval=None) as websocket:
@@ -58,6 +60,9 @@ async def read_websocket(app):
                 async for message in websocket:
                     if message == "done":
                         break
+                    if not message == last_message:
+                        app.logger.info(message)
+                    last_message = message
                     try:
                         f = json.loads(message)
                         print(message)
@@ -105,6 +110,9 @@ class PlayerList():
     def __init__(self):
         self.list = []
         self.last_message_data = {}
+        self.highest_gate = "0"
+        self.highest_lap = "0"
+        self.first_place_time = ""
 
     def get_index_of_player(self, player_name):
         j = 0
@@ -119,46 +127,61 @@ class PlayerList():
         self.list.append(Player(player_name))
 
     def process_racedata(self, player_name, data, app):
-        if not data == self.last_message_data:
+        if not data == self.last_message_data: # and player_name == app.target_player.get()
             i = self.get_index_of_player(player_name)
-            gate = data['gate']
-            lap = data['lap']
-            time = data['time']
-            
-            uig = f"{lap}-{gate}"
-            finished = True if data['finished'] == "True" else False
-            self.list[i].splits[uig] = time
-            try:
-                old_time = float(self.list[i].comparison_splits[uig])
-                new_time = float(time)
-                split = new_time - old_time
-                colour = "red"
-                if split < 1.5: colour = "yellow"
-                if split <= 0.0: colour = "light green"
-                if split <-1.5: colour = "green"
-                sign = "+" if split >= 0 else ""
-                app.split_label.config(text="{}{:.3f}".format(sign, split), fg=colour)
-            except:
-                app.split_label.config(text="{:.3f}".format(float(time)))
-            if finished:
+            if player_name == app.target_player.get():
+                gate = data['gate']
+                lap = data['lap']
+                time = data['time']
+                uig = f"{lap}-{gate}"
+            #print(self.highest_gate, "pre", gate, int(gate) > int(self.highest_gate))
+            if int(gate) + int(lap) * 1000 > int(self.highest_gate) + int(self.highest_lap) * 1000:
+                self.highest_gate = gate
+                self.first_place_time = time
+                self.highest_lap = lap
+            if player_name == app.target_player.get():
+            #print(self.highest_gate, "aft", gate, int(gate) > int(self.highest_gate))
+                finished = True if data['finished'] == "True" else False
+                self.list[i].splits[uig] = time
                 try:
-                    if float(self.list[i].comparison_splits[uig]) > float(self.list[i].splits[uig]):
-                        print("new pb, overwriting splits...")
+                    if app.options_var.get() == "Single Player: Time Attack":
+                        old_time = float(self.list[i].comparison_splits[uig])
+                    elif app.options_var.get() == "Multiplayer: VS First Place":
+                        old_time = float(self.first_place_time)
+                    new_time = float(time)
+                    if app.target_player.get() == player_name:
+                        split = new_time - old_time
+                    colour = "red"
+                    if split < 1.5: colour = "yellow"
+                    if split <= 0.0: colour = "light green"
+                    if split <-1.5: colour = "green"
+                    sign = "+" if split >= 0 else ""
+                    app.split_label.config(text="{}{:.3f}".format(sign, split), fg=colour)
+                except:
+                    app.split_label.config(text="{:.3f}".format(float(time)))
+                if finished:
+                    if app.target_player.get() == player_name:
+                        self.highest_gate = "0"
+                        self.highest_lap = "0"
+                        self.first_place_time = "0"
+                    try:
+                        if float(self.list[i].comparison_splits[uig]) > float(self.list[i].splits[uig]):
+                            print("new pb, overwriting splits...")
+                            app.save_splits_button.configure(bg="yellow")
+                            self.list[i].comparison_splits = self.list[i].splits.copy()
+                            app.pb = self.list[i].splits[uig]
+                            app.open_file_time.config(text=f"PB: {app.pb}s")
+                            if app.autosave.get() and app.open_file:
+                                app.save_splits(app.open_file)
+
+                    except KeyError as e:
+                        print(e, "no comparison found, overwriting splits...")
                         app.save_splits_button.configure(bg="yellow")
                         self.list[i].comparison_splits = self.list[i].splits.copy()
                         app.pb = self.list[i].splits[uig]
                         app.open_file_time.config(text=f"PB: {app.pb}s")
                         if app.autosave.get() and app.open_file:
                             app.save_splits(app.open_file)
-
-                except KeyError as e:
-                    print(e, "no comparison found, overwriting splits...")
-                    app.save_splits_button.configure(bg="yellow")
-                    self.list[i].comparison_splits = self.list[i].splits.copy()
-                    app.pb = self.list[i].splits[uig]
-                    app.open_file_time.config(text=f"PB: {app.pb}s")
-                    if app.autosave.get() and app.open_file:
-                        app.save_splits(app.open_file)
         self.last_message_data = data
     
     def get_player_splits(self, player_name):
@@ -183,14 +206,15 @@ class App(tk.Tk):
         self.tasks.append(loop.create_task(read_websocket(self)))
 
         window_x = 510
-        window_y = 160
+        window_y = 190
         font_tuple = ("Consolas", 12, "normal")
 
         self.withdraw()
         self.wm_title("VDSplitViewer")
         x = int(bbox[0]+bbox[2]/2)-window_x//2
         y = bbox[1]+45
-        self.geometry(str(window_x)+"x"+str(window_y)+"+"+str(x)+"+"+str(y))
+        #self.geometry(str(window_x)+"x"+str(window_y)+"+"+str(x)+"+"+str(y))
+        self.geometry("+"+str(x)+"+"+str(y))
     
         self.overrideredirect(1) # makes the border around the window disappear
 
@@ -203,27 +227,51 @@ class App(tk.Tk):
         self.VDSplits_folder = os.path.join(local_appdata_path, "VDSplitviewerData")
         os.makedirs(self.VDSplits_folder, exist_ok=True)
 
-        self.load_splits_button = tk.Button(self, text="Load", height=1, width=9, font=font_tuple, command=self.load_splits)
+        self.logger = logging.Logger('VDAppLogger')
+        self.logger.setLevel(logging.INFO)
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        filehandler = logging.FileHandler(os.path.join(self.VDSplits_folder, 'messages.log'))
+        filehandler.setFormatter(formatter)
+        self.logger.addHandler(filehandler)
+
+        self.left_frame = tk.Frame(self, width=window_x, height=window_y, bg=self['bg'])
+        self.left_frame.grid(rowspan=4, stick="ew")
+        self.left_frame.grid_propagate(0)
+
+        self.load_splits_button = tk.Button(self.left_frame, text="Load", height=1, width=9, font=font_tuple, command=self.load_splits)
         self.load_splits_button.grid(column=0, row=0, sticky="w")
-        self.save_splits_button = tk.Button(self, text="Save", height=1, width=9, font=font_tuple, command=self.save_splits)
+        self.save_splits_button = tk.Button(self.left_frame, text="Save", height=1, width=9, font=font_tuple, command=self.save_splits)
         self.save_splits_button.grid(column=0, row=1, sticky="w")
 
-        self.clear_splits_button = tk.Button(self, text="Clear", height=1, width=9, font=font_tuple, command=self.clear_splits)
-        self.clear_splits_button.grid(column=3, row=1, sticky="e")
+        self.clear_splits_button = tk.Button(self.left_frame, text="Clear", height=1, width=9, font=font_tuple, command=self.clear_splits)
+        self.clear_splits_button.grid(column=0, row=2, sticky="w")
 
-        self.close_button = tk.Button(self, text="Close", height=1, width=9, font=font_tuple, command=self.close)
+        self.close_button = tk.Button(self.left_frame, text="Close", height=1, width=9, font=font_tuple, command=self.close)
         self.close_button.grid(column=3, row=0, sticky="e")
 
         self.open_file = ""
 
-        self.open_file_label = tk.Label(self, text="Filename: NA", font=font_tuple, fg='WHITE', bg=self['bg'])
-        self.open_file_label.grid(row=2, column=0, columnspan=2, sticky="w")
-        self.open_file_time = tk.Label(self, text="PB: -", font=font_tuple, fg='WHITE', bg=self['bg'])
-        self.open_file_time.grid(row=3, column=0, columnspan=1, sticky="w")
+        self.open_file_label = tk.Label(self.left_frame, text="Filename: NA", font=font_tuple, fg='WHITE', bg=self['bg'])
+        self.open_file_label.grid(row=3, column=0, columnspan=2, sticky="w")
+        self.open_file_time = tk.Label(self.left_frame, text="PB: -", font=font_tuple, fg='WHITE', bg=self['bg'])
+        self.open_file_time.grid(row=4, column=0, columnspan=1, sticky="w")
         self.autosave = tk.IntVar()
         self.autosave.set(1)
-        self.auto_save_toggle = tk.Checkbutton(self, text="Autosave", height=1, width=9, variable=self.autosave, anchor="w", font=font_tuple)#, fg='WHITE', bg=self['bg'])
-        self.auto_save_toggle.grid(row=2, column=3, sticky="e")
+        self.auto_save_toggle = tk.Checkbutton(self.left_frame, text="Autosave", height=1, width=11, variable=self.autosave, anchor="w", font=font_tuple)#, fg='WHITE', bg=self['bg'])
+        self.auto_save_toggle.grid(row=1, column=3, sticky="e")
+        self.multiplayer = tk.IntVar()
+        self.multiplayer.set(0)
+        self.multiplayer_toggle = tk.Checkbutton(self.left_frame, text="Multiplayer", height=1, width=11, variable=self.multiplayer, anchor="w", font=font_tuple, command=self.multiplayer_clicked)
+        self.multiplayer_toggle.grid(row=2, column=3, sticky="e")
+        self.options = ["Single Player: Time Attack", "Multiplayer: VS First Place", "Multiplayer: VS Rival"]
+        self.options_var = tk.StringVar()
+        self.options_var.set(self.options[0])
+        self.multiplayer_target_options = tk.OptionMenu(self, self.options_var, *self.options)
+        custom_menu_1 = self.nametowidget(self.multiplayer_target_options.menuname)
+        self.multiplayer_target_options.config(font=font_tuple)
+        custom_menu_1.config(font=font_tuple)
+        #self.multiplayer_target_options.grid(row=3, column=3, sticky="e")
+        #self.multiplayer_target_options.config()
 
         self.target_player = tk.StringVar()
         self.target_player.set("Enter player here")
@@ -233,8 +281,8 @@ class App(tk.Tk):
             self.target_player.set(cfg['target player'])
         else:
             json.dump({'target player':'Enter player here'}, open(self.config_file_path, "w"))
-        self.target_player_entry = tk.Entry(self, textvariable=self.target_player, justify="center", font=font_tuple)
-        self.target_player_entry.grid(row=3, column=3, columnspan=1)
+        self.target_player_entry = tk.Entry(self.left_frame, textvariable=self.target_player, justify="center", font=font_tuple)
+        self.target_player_entry.grid(row=4, column=3, columnspan=1)
 
         #temporary or debugging labels are commented out, they still exist put are not placed on the window
 
@@ -250,11 +298,12 @@ class App(tk.Tk):
         self.countdown_label = tk.Label(self, text="Countdown", font=font_tuple, fg='WHITE', bg=self['bg'])
         #self.countdown_label.grid(columnspan=4)
 
-        self.split_label = tk.Label(self, text="Splits", font="Consolas 18 bold", fg='WHITE', bg=self['bg'])
+        self.split_label = tk.Label(self.left_frame, text="Splits", font="Consolas 18 bold", fg='WHITE', bg=self['bg'])
         self.split_label.grid(columnspan=4)
 
-        self.grid_columnconfigure(1, weight=1)
-        self.grid_columnconfigure(2, weight=1)
+        self.left_frame.grid_columnconfigure(1, weight=1)
+        self.left_frame.grid_columnconfigure(2, weight=1)
+        self.grid_columnconfigure(0, weight=1)
 
         localip = self.find_local_ip()
         self.uri = ""
@@ -270,6 +319,15 @@ class App(tk.Tk):
         self.pl = PlayerList()
         self.pb = "-"
         self.deiconify()
+
+    def show_multiplayer_target_options(self, show):
+        if show:
+            self.multiplayer_target_options.grid(row=0, column=1, sticky="nw")
+        else:
+            self.multiplayer_target_options.grid_forget()
+    
+    def multiplayer_clicked(self):
+        self.show_multiplayer_target_options(self.multiplayer.get())
 
     def load_splits(self, filename=None):
         if self.target_player.get() == "Enter player here":
