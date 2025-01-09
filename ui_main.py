@@ -33,6 +33,9 @@ def callback(hwnd, extra):
         print("\t    Size: (%d, %d)" % (w, h))
         bbox = (x,y,w,h)
 
+async def start_fake_messages(websocket):
+    await websocket.send('serve')
+
 # keep websocket connection alive
 async def send_heartbeat(websocket):
     try:
@@ -44,14 +47,22 @@ async def send_heartbeat(websocket):
 
 async def read_websocket(app):
     pl = app.pl # stores all the split times and data for all the players found or loaded
+    first_run = True
     while True:
         try:
             async with websockets.connect(app.uri, ping_interval=None) as websocket:
+                if first_run:
+                    await start_fake_messages(websocket)
+                    first_run = False
                 heartbeat_task = asyncio.create_task(send_heartbeat(websocket))
                 async for message in websocket:
+                    if message == "done":
+                        break
                     try:
                         f = json.loads(message)
+                        print(message)
                         if "racedata" in f:
+                            print("hit0")
                             for pilot,data in f['racedata'].items():
                                 pl.process_racedata(pilot, data, app)
                         elif "countdown" in f:
@@ -113,6 +124,7 @@ class PlayerList():
             gate = data['gate']
             lap = data['lap']
             time = data['time']
+            
             uig = f"{lap}-{gate}"
             finished = True if data['finished'] == "True" else False
             self.list[i].splits[uig] = time
@@ -245,8 +257,15 @@ class App(tk.Tk):
         self.grid_columnconfigure(2, weight=1)
 
         localip = self.find_local_ip()
-        self.uri = "ws://{}/velocidrone".format(localip)
-        if not localip: self.close()
+        self.uri = ""
+        self.fake_messages = False
+        if localip:
+            self.uri = "ws://{}/velocidrone".format(localip)
+        else:
+            self.uri = "ws://localhost:8765"
+            self.fake_messages = True
+            self.geometry("+100+100")
+            #self.close()
 
         self.pl = PlayerList()
         self.pb = "-"
