@@ -126,6 +126,24 @@ class PlayerList():
     def add_player_to_list(self, player_name):
         self.list.append(Player(player_name))
 
+    def number_to_hex_color(self, value):
+        if value < 0: value = 0
+        elif value > 1.5: value = 1.5
+
+        # Normalize the value to be between 0 and 1
+        normalized_value = value / 1.5
+
+        # Calculate the red and green components
+        red = 255
+        green = int(255 * (1 - normalized_value / 1.2))  # Adjust the range for green component
+
+        # Blue component is always 0 for the yellow to red gradient
+        blue = int(100 * (1 - normalized_value))
+
+        # Convert to hex
+        hex_color = f'#{red:02x}{green:02x}{blue:02x}'
+        return hex_color
+
     def process_racedata(self, player_name, data, app):
         #print(player_name, data)
         if not data == self.last_message_data: # and player_name == app.target_player.get()
@@ -138,27 +156,27 @@ class PlayerList():
                 self.first_place_player = player_name
                 self.first_place_index = self.get_index_of_player(self.first_place_player)
             uig = f"{lap}-{gate}"
-            if player_name == app.target_player.get():
+            #print(player_name, position, uig, time)
+            if player_name == app.target_player.get() and not player_name == self.first_place_player:
                 finished = True if data['finished'] == "True" else False
                 self.list[i].splits[uig] = time
                 try:
                     if app.options_var.get() == "Single Player: Time Attack":
                         old_time = float(self.list[i].comparison_splits[uig])
-                    if app.options_var.get() == "Multiplayer: VS First Place":
+                    elif app.options_var.get() == "Multiplayer: VS First Place":
                         old_time = float(self.list[self.first_place_index].splits[uig])
                     new_time = float(time)
                     if app.target_player.get() == player_name:
                         #print("latest personal time:", new_time)
                         split = new_time - old_time
-                    colour = "red"
-                    if split < 1.5: colour = "yellow"
+                    colour = self.number_to_hex_color(split)
                     if split <= 0.0: colour = "light green"
                     if split <-1.5: colour = "green"
                     sign = "+" if split >= 0 else ""
                     app.split_label.config(text="{}{:.3f}".format(sign, split), fg=colour)
                 except Exception as e:
-                    print(e)
-                    app.split_label.config(text="{:.3f}".format(float(time)))
+                    #print(e)
+                    app.split_label.config(text="{:.3f}".format(float(time)), fg="WHITE")
                 if finished:
                     if app.target_player.get() == player_name:
                         self.highest_gate = "0"
@@ -183,6 +201,16 @@ class PlayerList():
                         if app.autosave.get() and app.open_file:
                             app.save_splits(app.open_file)
             self.list[i].splits[uig] = time
+            if position == 2 and self.first_place_player == app.target_player.get():
+                #print("second place: {}, first place: {}, comparison gate: {}".format(player_name, self.first_place_player, uig))
+                new_time = float(time)
+                old_time = float(self.list[self.first_place_index].splits[uig])
+                split = old_time - new_time
+                colour = self.number_to_hex_color(split)
+                if split <= 0.0: colour = "light green"
+                if split <-1.5: colour = "#4FC42C"
+                sign = "+" if split >= 0 else ""
+                app.split_label.config(text="{}{:.3f}".format(sign, split), fg=colour)
         self.last_message_data = data
     
     def get_player_splits(self, player_name):

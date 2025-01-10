@@ -1,4 +1,4 @@
-2025-01-07 17:35:40,000 - INFO - b'{"countdown":{"countValue":"3"}}'
+2025-01-07 17:35:40,000 - INFO - b'{"countdown":{"countValue":"Reading messages from file"}}'
 2025-01-07 17:35:50,000 - INFO - b'{"countdown":{"countValue":"3"}}'
 2025-01-07 17:35:51,000 - INFO - b'{"countdown":{"countValue":"2"}}'
 2025-01-07 17:35:52,000 - INFO - b'{"countdown":{"countValue":"1"}}'
