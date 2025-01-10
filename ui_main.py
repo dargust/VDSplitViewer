@@ -58,7 +58,10 @@ async def read_websocket(app):
                     first_run = False
                 heartbeat_task = asyncio.create_task(send_heartbeat(websocket))
                 async for message in websocket:
+                    #print(message[:130])
                     if message == "done":
+                        await websocket.send("stop")
+                        first_run = False
                         break
                     if not message == last_message:
                         app.logger.info(message)
@@ -157,7 +160,8 @@ class PlayerList():
                 self.first_place_index = self.get_index_of_player(self.first_place_player)
             uig = f"{lap}-{gate}"
             #print(player_name, position, uig, time)
-            if player_name == app.target_player.get() and not player_name == self.first_place_player:
+            mp = True if app.options_var.get() == "Multiplayer: VS First Place" else False
+            if player_name == app.target_player.get() and (not player_name == self.first_place_player or not mp):
                 finished = True if data['finished'] == "True" else False
                 self.list[i].splits[uig] = time
                 try:
@@ -173,9 +177,10 @@ class PlayerList():
                     if split <= 0.0: colour = "light green"
                     if split <-1.5: colour = "green"
                     sign = "+" if split >= 0 else ""
+                    #print("old time:", old_time, "new time:", new_time, "diff:", split)
                     app.split_label.config(text="{}{:.3f}".format(sign, split), fg=colour)
                 except Exception as e:
-                    #print(e)
+                    print(e)
                     app.split_label.config(text="{:.3f}".format(float(time)), fg="WHITE")
                 if finished:
                     if app.target_player.get() == player_name:
@@ -211,6 +216,8 @@ class PlayerList():
                 if split <-1.5: colour = "#4FC42C"
                 sign = "+" if split >= 0 else ""
                 app.split_label.config(text="{}{:.3f}".format(sign, split), fg=colour)
+            elif mp:
+                app.split_label.config(text=time, fg="WHITE")
         self.last_message_data = data
     
     def get_player_splits(self, player_name):
