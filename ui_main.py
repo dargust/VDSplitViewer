@@ -155,7 +155,7 @@ class PlayerList():
             lap = data['lap']
             time = data['time']
             position = int(data['position'])
-            if position == 1:
+            if position == 1 and app.options_var.get() == "Multiplayer: VS First Place":
                 self.first_place_player = player_name
                 self.first_place_index = self.get_index_of_player(self.first_place_player)
             uig = f"{lap}-{gate}"
@@ -168,6 +168,8 @@ class PlayerList():
                     if app.options_var.get() == "Single Player: Time Attack":
                         old_time = float(self.list[i].comparison_splits[uig])
                     elif app.options_var.get() == "Multiplayer: VS First Place":
+                        old_time = float(self.list[self.first_place_index].splits[uig])
+                    elif app.options_var.get() == "Multiplayer: VS Rival":
                         old_time = float(self.list[self.first_place_index].splits[uig])
                     new_time = float(time)
                     if app.target_player.get() == player_name:
@@ -217,7 +219,8 @@ class PlayerList():
                 sign = "+" if split >= 0 else ""
                 app.split_label.config(text="{}{:.3f}".format(sign, split), fg=colour)
             elif mp:
-                app.split_label.config(text=time, fg="WHITE")
+                pass
+                #app.split_label.config(text=time, fg="BLUE")
         self.last_message_data = data
     
     def get_player_splits(self, player_name):
@@ -299,7 +302,7 @@ class App(tk.Tk):
         self.multiplayer.set(0)
         self.multiplayer_toggle = tk.Checkbutton(self.left_frame, text="Multiplayer", height=1, width=11, variable=self.multiplayer, anchor="w", font=font_tuple, command=self.multiplayer_clicked)
         self.multiplayer_toggle.grid(row=2, column=3, sticky="e")
-        self.options = ["Single Player: Time Attack", "Multiplayer: VS First Place", "Multiplayer: VS Rival"]
+        self.options = ["Single Player: Time Attack", "Multiplayer: VS First Place"]#, "Multiplayer: VS Rival"]
         self.options_var = tk.StringVar()
         self.options_var.set(self.options[0])
         self.multiplayer_target_options = tk.OptionMenu(self, self.options_var, *self.options)
