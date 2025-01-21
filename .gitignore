@@ -1,0 +1,26 @@
+# Ignore dist directory
+dist/
+
+# Ignore build directory
+build/
+
+# Ignore PyInstaller spec files
+*.spec
+
+# Ignore executable files
+*.exe
+
+# Ignore Python cache files
+__pycache__/
+*.pyc
+*.pyo
+
+# Ignore virtual environment directories
+venv/
+env/
+
+# Ignore log files
+*.log
+
+# Ignore local configuration files
+*.local
