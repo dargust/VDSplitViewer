@@ -116,6 +116,7 @@ class PlayerList():
         self.first_place_time = ""
         self.first_place_player = ""
         self.first_place_index = 0
+        self.finished_list = []
 
     def get_index_of_player(self, player_name):
         j = 0
@@ -149,6 +150,10 @@ class PlayerList():
 
     def process_racedata(self, player_name, data, app):
         #print(player_name, data)
+        if player_name not in self.finished_list:
+            if data['finished'] == "True":
+                self.finished_list.append(player_name)
+                app.add_copy_button(player_name, data['time'])
         if not data == self.last_message_data: # and player_name == app.target_player.get()
             i = self.get_index_of_player(player_name)
             gate = data['gate']
@@ -277,6 +282,9 @@ class App(tk.Tk):
         self.left_frame.grid(rowspan=4, stick="ew")
         self.left_frame.grid_propagate(0)
 
+        self.copy_frame = tk.Frame(self, bg=self['bg'])
+        self.copy_frame.grid(row=0, column=2, stick="ew")
+
         self.load_splits_button = tk.Button(self.left_frame, text="Load", height=1, width=9, font=font_tuple, command=self.load_splits)
         self.load_splits_button.grid(column=0, row=0, sticky="w")
         self.save_splits_button = tk.Button(self.left_frame, text="Save", height=1, width=9, font=font_tuple, command=self.save_splits)
@@ -356,9 +364,28 @@ class App(tk.Tk):
             self.geometry("+100+100")
             #self.close()
 
+        self.clear_copy_button = tk.Button(self.copy_frame, text="Clear copy buttons", font=("Consolas", 12, "normal"), command=self.clear_copy_buttons)
+        self.clear_copy_button.grid(sticky="w")
+        self.copy_button_list = []
+
         self.pl = PlayerList()
         self.pb = "-"
         self.deiconify()
+
+    def clear_copy_buttons(self):
+        for button in self.copy_button_list:
+            button.destroy()
+        self.copy_button_list = []
+        self.pl.finished_list = []
+
+    def clipboard_update(self, text):
+        self.clipboard_clear()
+        self.clipboard_append(text)
+
+    def add_copy_button(self, player, time):
+        self.copy_button_list.append(tk.Button(self.copy_frame, text=f"{player}", font=("Consolas", 12, "normal"), command=lambda: self.clipboard_update(str(time))))
+        for button in self.copy_button_list:
+            button.grid(sticky="w")
 
     def show_multiplayer_target_options(self, show):
         if show:
