@@ -4,9 +4,9 @@ Python tkinter overlay for velocidrone
 ## usage:
 python ui_main.py
 
-or (to get rid of console window:)
+or (to get rid of console window:) pythonw ui_main.py
 
-pythonw ui_main.py
+or run the release .exe
 
 ## requirements:
 psutil -> pip install psutil
