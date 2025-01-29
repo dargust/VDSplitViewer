@@ -88,6 +88,8 @@ async def read_websocket(app):
                             raceFormat = f['racetype']['raceFormat']
                             raceLaps = f['racetype']['raceLaps']
                             app.racetype_label.config(text=f"{raceMode}, {raceFormat}, Laps: {raceLaps}")
+                        else:
+                            print("unhandled message:", f)
                     except Exception as e:
                         print(e)
                     finally:
