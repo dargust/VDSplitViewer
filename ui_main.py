@@ -19,9 +19,9 @@ import pickle
 import os
 import logging
 
-# callback function used by win32gui to get the window dimensions of velocidrone
 bbox = (0,0,0,0)
 def callback(hwnd, extra):
+    # callback function used by win32gui to get the window dimensions of velocidrone
     global bbox
     if "velocidrone" in win32gui.GetWindowText(hwnd):
         rect = win32gui.GetWindowRect(hwnd)
@@ -37,8 +37,8 @@ def callback(hwnd, extra):
 async def start_fake_messages(websocket):
     await websocket.send('serve')
 
-# keep websocket connection alive
 async def send_heartbeat(websocket):
+    # keep websocket connection alive
     try:
         while True:
             await asyncio.sleep(10)
@@ -58,7 +58,6 @@ async def read_websocket(app):
                     first_run = False
                 heartbeat_task = asyncio.create_task(send_heartbeat(websocket))
                 async for message in websocket:
-                    #print(message[:130])
                     if message == "done":
                         await websocket.send("stop")
                         first_run = False
@@ -316,12 +315,20 @@ class App(tk.Tk):
 
         self.target_player = tk.StringVar()
         self.target_player.set("Enter player here")
+        self.log_enabled = True
         self.config_file_path = os.path.join(self.VDSplits_folder, "config.txt")
-        if os.path.exists(self.config_file_path):
-            cfg = json.load((open(self.config_file_path, "r")))
-            self.target_player.set(cfg['target player'])
-        else:
-            json.dump({'target player':'Enter player here'}, open(self.config_file_path, "w"))
+        try:
+            if os.path.exists(self.config_file_path):
+                cfg = json.load((open(self.config_file_path, "r")))
+                self.target_player.set(cfg['target player'])
+                self.log_enabled = cfg['log enabled']
+            else:
+                json.dump({'target player':'Enter player here', 'log enabled':True}, open(self.config_file_path, "w"))
+        except:
+            print("Config file error, creating new one with default values")
+            json.dump({'target player':'Enter player here', 'log enabled':True}, open(self.config_file_path, "w"))
+        self.logger.disabled = not self.log_enabled
+
         self.target_player_entry = tk.Entry(self.left_frame, textvariable=self.target_player, justify="center", font=font_tuple)
         self.target_player_entry.grid(row=4, column=3, columnspan=1)
 
@@ -438,7 +445,7 @@ class App(tk.Tk):
         return None
 
     def close(self):
-        json.dump({'target player':self.target_player.get()}, open(self.config_file_path, "w"))
+        json.dump({'target player':self.target_player.get(), 'log enabled':self.log_enabled}, open(self.config_file_path, "w"))
         for task in self.tasks:
             task.cancel()
         self.loop.stop()
