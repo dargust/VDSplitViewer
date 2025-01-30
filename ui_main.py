@@ -41,6 +41,7 @@ async def send_heartbeat(websocket):
     # keep websocket connection alive
     try:
         while True:
+            #print("sending heartbeat")
             await asyncio.sleep(10)
             await websocket.send("heartbeat")
     except Exception as e:
@@ -89,6 +90,8 @@ async def read_websocket(app):
                             app.racetype_label.config(text=f"{raceMode}, {raceFormat}, Laps: {raceLaps}")
                         else:
                             print("unhandled message:", f)
+                    except json.JSONDecodeError as e:
+                        pass#print(message)
                     except Exception as e:
                         print(e)
                     finally:
@@ -339,7 +342,7 @@ class App(tk.Tk):
         self.copy_frame = tk.Frame(self, bg=self['bg'])
         if self.race_director:
             self.copy_frame.grid(row=0, column=2, stick="nw")
-        
+
         self.race_director_var = tk.IntVar()
         self.race_director_var.set(self.race_director)
         self.race_director_toggle = tk.Checkbutton(self.left_frame, text="Race Director", height=1, width=13, variable=self.race_director_var, anchor="w", font=font_tuple, command=self.race_director_clicked)

@@ -12,6 +12,7 @@ async def send_after_delay(websocket, delay, message):
     await websocket.send(f"{message}")
 
 async def echo(websocket):
+    task_list = []
     while True:
         try:
             async for message in websocket:
@@ -43,10 +44,19 @@ async def echo(websocket):
                                 text = groups[1]
                                 task = asyncio.create_task(send_after_delay(websocket, float(delay), text))
                                 task_list.append(task)
-                    for task in task_list:
-                        await task
-                    await websocket.send("done")
-                    print("done serving")
+                elif message == "heartbeat":
+                    await websocket.send("ping")
+                finished = []
+                for task in task_list:
+                    #await task
+                    if task.done():
+                        finished.append(True)
+                    else:
+                        finished.append(False)
+                if len(finished) > 0:
+                    if all(finished):
+                        print("done serving")
+                        await websocket.send("done")
         except Exception as e:
             print("websocket closed", e)
             asyncio.get_event_loop().stop()
