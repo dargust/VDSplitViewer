@@ -283,9 +283,6 @@ class App(tk.Tk):
         self.left_frame.grid(rowspan=4, stick="ew")
         self.left_frame.grid_propagate(0)
 
-        self.copy_frame = tk.Frame(self, bg=self['bg'])
-        self.copy_frame.grid(row=0, column=2, stick="ew")
-
         self.load_splits_button = tk.Button(self.left_frame, text="Load", height=1, width=9, font=font_tuple, command=self.load_splits)
         self.load_splits_button.grid(column=0, row=0, sticky="w")
         self.save_splits_button = tk.Button(self.left_frame, text="Save", height=1, width=9, font=font_tuple, command=self.save_splits)
@@ -324,18 +321,29 @@ class App(tk.Tk):
         self.target_player = tk.StringVar()
         self.target_player.set("Enter player here")
         self.log_enabled = True
+        self.race_director = False
         self.config_file_path = os.path.join(self.VDSplits_folder, "config.txt")
         try:
             if os.path.exists(self.config_file_path):
                 cfg = json.load((open(self.config_file_path, "r")))
                 self.target_player.set(cfg['target player'])
                 self.log_enabled = cfg['log enabled']
+                self.race_director = cfg['race director']
             else:
-                json.dump({'target player':'Enter player here', 'log enabled':True}, open(self.config_file_path, "w"))
+                json.dump({'target player':'Enter player here', 'log enabled':True, 'race director':False}, open(self.config_file_path, "w"))
         except:
             print("Config file error, creating new one with default values")
-            json.dump({'target player':'Enter player here', 'log enabled':True}, open(self.config_file_path, "w"))
+            json.dump({'target player':'Enter player here', 'log enabled':True, 'race director':False}, open(self.config_file_path, "w"))
         self.logger.disabled = not self.log_enabled
+
+        self.copy_frame = tk.Frame(self, bg=self['bg'])
+        if self.race_director:
+            self.copy_frame.grid(row=0, column=2, stick="ew")
+        
+        self.race_director_var = tk.IntVar()
+        self.race_director_var.set(self.race_director)
+        self.race_director_toggle = tk.Checkbutton(self.left_frame, text="Race Director", height=1, width=11, variable=self.race_director_var, anchor="w", font=font_tuple, command=self.race_director_clicked)
+        self.race_director_toggle.grid(row=3, column=3, sticky="e")
 
         self.target_player_entry = tk.Entry(self.left_frame, textvariable=self.target_player, justify="center", font=font_tuple)
         self.target_player_entry.grid(row=4, column=3, columnspan=1)
@@ -387,12 +395,15 @@ class App(tk.Tk):
         self.copy_button_list = []
         self.pl.finished_list = []
 
-    def clipboard_update(self, text):
+    def clipboard_update(self, text, player):
         self.clipboard_clear()
         self.clipboard_append(text)
+        for button in self.copy_button_list:
+            if button.cget("text") == player:
+                button.configure(bg="SystemButtonFace")
 
     def add_copy_button(self, player, time):
-        self.copy_button_list.append(tk.Button(self.copy_frame, text=f"{player}", font=("Consolas", 12, "normal"), command=lambda: self.clipboard_update(str(time))))
+        self.copy_button_list.append(tk.Button(self.copy_frame, text=f"{player}", bg="#ffc030", font=("Consolas", 12, "normal"), command=lambda: self.clipboard_update(str(time), player)))
         for button in self.copy_button_list:
             button.grid(sticky="w")
 
@@ -404,6 +415,13 @@ class App(tk.Tk):
     
     def multiplayer_clicked(self):
         self.show_multiplayer_target_options(self.multiplayer.get())
+
+    def race_director_clicked(self):
+        self.race_director = True if self.race_director_var.get() == 1 else False
+        if self.race_director:
+            self.copy_frame.grid(row=0, column=2, stick="ew")
+        else:
+            self.copy_frame.grid_forget()
 
     def load_splits(self, filename=None):
         if self.target_player.get() == "Enter player here":
@@ -472,7 +490,7 @@ class App(tk.Tk):
         return None
 
     def close(self):
-        json.dump({'target player':self.target_player.get(), 'log enabled':self.log_enabled}, open(self.config_file_path, "w"))
+        json.dump({'target player':self.target_player.get(), 'log enabled':self.log_enabled, 'race director':self.race_director}, open(self.config_file_path, "w"))
         for task in self.tasks:
             task.cancel()
         self.loop.stop()
