@@ -342,7 +342,7 @@ class App(tk.Tk):
         
         self.race_director_var = tk.IntVar()
         self.race_director_var.set(self.race_director)
-        self.race_director_toggle = tk.Checkbutton(self.left_frame, text="Race Director", height=1, width=11, variable=self.race_director_var, anchor="w", font=font_tuple, command=self.race_director_clicked)
+        self.race_director_toggle = tk.Checkbutton(self.left_frame, text="Race Director", height=1, width=13, variable=self.race_director_var, anchor="w", font=font_tuple, command=self.race_director_clicked)
         self.race_director_toggle.grid(row=3, column=3, sticky="e")
 
         self.target_player_entry = tk.Entry(self.left_frame, textvariable=self.target_player, justify="center", font=font_tuple)
