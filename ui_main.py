@@ -338,7 +338,7 @@ class App(tk.Tk):
 
         self.copy_frame = tk.Frame(self, bg=self['bg'])
         if self.race_director:
-            self.copy_frame.grid(row=0, column=2, stick="ew")
+            self.copy_frame.grid(row=0, column=2, stick="nw")
         
         self.race_director_var = tk.IntVar()
         self.race_director_var.set(self.race_director)
@@ -382,7 +382,7 @@ class App(tk.Tk):
             #self.close()
 
         self.clear_copy_button = tk.Button(self.copy_frame, text="Clear copy buttons", font=("Consolas", 12, "normal"), command=self.clear_copy_buttons)
-        self.clear_copy_button.grid(sticky="w")
+        self.clear_copy_button.grid(sticky="nw")
         self.copy_button_list = []
 
         self.pl = PlayerList()
@@ -405,7 +405,7 @@ class App(tk.Tk):
     def add_copy_button(self, player, time):
         self.copy_button_list.append(tk.Button(self.copy_frame, text=f"{player}", bg="#ffc030", font=("Consolas", 12, "normal"), command=lambda: self.clipboard_update(str(time), player)))
         for button in self.copy_button_list:
-            button.grid(sticky="w")
+            button.grid(sticky="nw")
 
     def show_multiplayer_target_options(self, show):
         if show:
@@ -419,7 +419,7 @@ class App(tk.Tk):
     def race_director_clicked(self):
         self.race_director = True if self.race_director_var.get() == 1 else False
         if self.race_director:
-            self.copy_frame.grid(row=0, column=2, stick="ew")
+            self.copy_frame.grid(row=0, column=2, stick="nw")
         else:
             self.copy_frame.grid_forget()
 
