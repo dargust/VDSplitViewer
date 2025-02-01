@@ -18,6 +18,7 @@ import win32gui
 import pickle
 import os
 import logging
+import tkinter.ttk as ttk
 
 bbox = (0,0,0,0)
 def callback(hwnd, extra):
@@ -242,8 +243,6 @@ class PlayerList():
     def set_player_splits(self, player_name, new_splits):
         i = self.get_index_of_player(player_name)
         self.list[i].comparison_splits = new_splits
-
-import tkinter.ttk as ttk
 
 class App(tk.Tk):
     def __init__(self, loop, interval=1/60):
