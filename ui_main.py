@@ -23,13 +23,14 @@ bbox = (0,0,0,0)
 def callback(hwnd, extra):
     # callback function used by win32gui to get the window dimensions of velocidrone
     global bbox
-    if "velocidrone" in win32gui.GetWindowText(hwnd):
+    window_name = win32gui.GetWindowText(hwnd)
+    if "velocidrone" == window_name:
         rect = win32gui.GetWindowRect(hwnd)
         x = rect[0]
         y = rect[1]
         w = rect[2] - x
         h = rect[3] - y
-        print("Window %s:" % win32gui.GetWindowText(hwnd))
+        print("{} window:".format(window_name))
         print("\tLocation: (%d, %d)" % (x, y))
         print("\t    Size: (%d, %d)" % (w, h))
         bbox = (x,y,w,h)
@@ -287,7 +288,6 @@ class App(tk.Tk):
 
         self.style = ttk.Style()
         available_themes = self.style.theme_names()
-        print("Available themes:", available_themes)
 
         self.target_player = tk.StringVar()
         self.target_player.set("Enter player here")
