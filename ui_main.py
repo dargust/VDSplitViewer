@@ -18,6 +18,7 @@ import win32gui
 import pickle
 import os
 import logging
+import sys
 import tkinter.ttk as ttk
 
 bbox = (0,0,0,0)
@@ -498,7 +499,20 @@ class App(tk.Tk):
         self.loop.stop()
         self.destroy()
 
-loop = asyncio.get_event_loop()
-app = App(loop)
-loop.run_forever()
-loop.close()
+def print_version():
+    print("Velocidrone Split Viewer")
+    print("Version: 0.3.1.1")
+    print("Author: Dan Argust")
+    sys.exit(0)
+
+def main():
+    if "--version" in sys.argv:
+        print_version()
+    else:
+        loop = asyncio.get_event_loop()
+        app = App(loop)
+        loop.run_forever()
+        loop.close()
+
+if __name__ == "__main__":
+    main()
