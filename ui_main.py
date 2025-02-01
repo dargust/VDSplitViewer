@@ -502,7 +502,6 @@ class App(tk.Tk):
 def print_version():
     print("Velocidrone Split Viewer")
     print("Version: 0.3.1.1")
-    print("Author: Dan Argust")
     sys.exit(0)
 
 def main():
