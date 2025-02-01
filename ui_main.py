@@ -19,7 +19,10 @@ import pickle
 import os
 import logging
 import sys
+import requests
 import tkinter.ttk as ttk
+
+VERSION = "v0.3.1.1"
 
 bbox = (0,0,0,0)
 def callback(hwnd, extra):
@@ -394,6 +397,10 @@ class App(tk.Tk):
         self.clear_copy_button.grid(sticky="nw")
         self.copy_button_list = []
 
+        new_version_available = check_latest_version()
+        if new_version_available:
+            self.split_label.config(text="New version available")
+
         self.pl = PlayerList()
         self.pb = "-"
         self.deiconify()
@@ -501,8 +508,25 @@ class App(tk.Tk):
 
 def print_version():
     print("Velocidrone Split Viewer")
-    print("Version: 0.3.1.1")
+    print(f"Version: {VERSION}")
     sys.exit(0)
+
+def check_latest_version():
+    url = "https://api.github.com/repos/dargust/VDSplitViewer/releases"
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        tags = response.json()
+        if tags:
+            latest_tag = tags[0]['name']
+            if VERSION not in latest_tag:
+                print(f"New version available: {latest_tag}")
+                return True
+        else:
+            print("No tags found in the repository.")
+    except requests.RequestException as e:
+        print(f"Error checking latest version: {e}")
+    return False
 
 def main():
     if "--version" in sys.argv:
