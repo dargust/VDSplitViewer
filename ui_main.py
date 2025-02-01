@@ -75,7 +75,7 @@ async def read_websocket(app):
                             countValue = f['countdown']['countValue']
                             if countValue == "0":
                                 countValue = "Go!"
-                            app.split_label.config(text=countValue, fg="WHITE")
+                            app.split_label.config(text=countValue, foreground="WHITE")
                             message = f"Countdown: {countValue}"
                         elif "racestatus" in f:
                             raceAction = f['racestatus']['raceAction']
@@ -189,10 +189,10 @@ class PlayerList():
                     if split <-1.5: colour = "green"
                     sign = "+" if split >= 0 else ""
                     #print("old time:", old_time, "new time:", new_time, "diff:", split)
-                    app.split_label.config(text="{}{:.3f}".format(sign, split), fg=colour)
+                    app.split_label.config(text="{}{:.3f}".format(sign, split), foreground=colour)
                 except Exception as e:
                     print(e)
-                    app.split_label.config(text="{:.3f}".format(float(time)), fg="WHITE")
+                    app.split_label.config(text="{:.3f}".format(float(time)), foreground="WHITE")
                 if finished:
                     if app.target_player.get() == player_name:
                         self.highest_gate = "0"
@@ -201,7 +201,8 @@ class PlayerList():
                     try:
                         if float(self.list[i].comparison_splits[uig]) > float(self.list[i].splits[uig]):
                             print("new pb, overwriting splits...")
-                            app.save_splits_button.configure(bg="yellow")
+                            #app.save_splits_button.configure(background="yellow")
+                            app.style.configure('W.TButton', background="#555500")
                             self.list[i].comparison_splits = self.list[i].splits.copy()
                             app.pb = self.list[i].splits[uig]
                             app.open_file_time.config(text=f"PB: {app.pb}s")
@@ -210,7 +211,8 @@ class PlayerList():
 
                     except KeyError as e:
                         print(e, "no comparison found, overwriting splits...")
-                        app.save_splits_button.configure(bg="yellow")
+                        #app.save_splits_button.configure(background="yellow")
+                        app.style.configure('W.TButton', background="#555500")
                         self.list[i].comparison_splits = self.list[i].splits.copy()
                         app.pb = self.list[i].splits[uig]
                         app.open_file_time.config(text=f"PB: {app.pb}s")
@@ -226,7 +228,7 @@ class PlayerList():
                 if split <= 0.0: colour = "light green"
                 if split <-1.5: colour = "#4FC42C"
                 sign = "+" if split >= 0 else ""
-                app.split_label.config(text="{}{:.3f}".format(sign, split), fg=colour)
+                app.split_label.config(text="{}{:.3f}".format(sign, split), foreground=colour)
             elif mp:
                 pass
                 #app.split_label.config(text=time, fg="BLUE")
@@ -239,6 +241,8 @@ class PlayerList():
     def set_player_splits(self, player_name, new_splits):
         i = self.get_index_of_player(player_name)
         self.list[i].comparison_splits = new_splits
+
+import tkinter.ttk as ttk
 
 class App(tk.Tk):
     def __init__(self, loop, interval=1/60):
@@ -254,14 +258,13 @@ class App(tk.Tk):
         self.tasks.append(loop.create_task(read_websocket(self)))
 
         window_x = 510
-        window_y = 190
+        window_y = 200
         font_tuple = ("Consolas", 12, "normal")
 
         self.withdraw()
         self.wm_title("VDSplitViewer")
         x = int(bbox[0]+bbox[2]/2)-window_x//2
         y = bbox[1]+45
-        #self.geometry(str(window_x)+"x"+str(window_y)+"+"+str(x)+"+"+str(y))
         self.geometry("+"+str(x)+"+"+str(y))
     
         self.overrideredirect(1) # makes the border around the window disappear
@@ -282,61 +285,75 @@ class App(tk.Tk):
         filehandler.setFormatter(formatter)
         self.logger.addHandler(filehandler)
 
-        self.left_frame = tk.Frame(self, width=window_x, height=window_y, bg=self['bg'])
-        self.left_frame.grid(rowspan=4, stick="ew")
-        self.left_frame.grid_propagate(0)
-
-        self.load_splits_button = tk.Button(self.left_frame, text="Load", height=1, width=9, font=font_tuple, command=self.load_splits)
-        self.load_splits_button.grid(column=0, row=0, sticky="w")
-        self.save_splits_button = tk.Button(self.left_frame, text="Save", height=1, width=9, font=font_tuple, command=self.save_splits)
-        self.save_splits_button.grid(column=0, row=1, sticky="w")
-
-        self.clear_splits_button = tk.Button(self.left_frame, text="Clear", height=1, width=9, font=font_tuple, command=self.clear_splits)
-        self.clear_splits_button.grid(column=0, row=2, sticky="w")
-
-        self.close_button = tk.Button(self.left_frame, text="Close", height=1, width=9, font=font_tuple, command=self.close)
-        self.close_button.grid(column=3, row=0, sticky="e")
-
-        self.open_file = ""
-
-        self.open_file_label = tk.Label(self.left_frame, text="Filename: NA", font=font_tuple, fg='WHITE', bg=self['bg'])
-        self.open_file_label.grid(row=3, column=0, columnspan=2, sticky="w")
-        self.open_file_time = tk.Label(self.left_frame, text="PB: -", font=font_tuple, fg='WHITE', bg=self['bg'])
-        self.open_file_time.grid(row=4, column=0, columnspan=1, sticky="w")
-        self.autosave = tk.IntVar()
-        self.autosave.set(1)
-        self.auto_save_toggle = tk.Checkbutton(self.left_frame, text="Autosave", height=1, width=11, variable=self.autosave, anchor="w", font=font_tuple)#, fg='WHITE', bg=self['bg'])
-        self.auto_save_toggle.grid(row=1, column=3, sticky="e")
-        self.multiplayer = tk.IntVar()
-        self.multiplayer.set(0)
-        self.multiplayer_toggle = tk.Checkbutton(self.left_frame, text="Multiplayer", height=1, width=11, variable=self.multiplayer, anchor="w", font=font_tuple, command=self.multiplayer_clicked)
-        self.multiplayer_toggle.grid(row=2, column=3, sticky="e")
-        self.options = ["Single Player: Time Attack", "Multiplayer: VS First Place"]#, "Multiplayer: VS Rival"]
-        self.options_var = tk.StringVar()
-        self.options_var.set(self.options[0])
-        self.multiplayer_target_options = tk.OptionMenu(self, self.options_var, *self.options)
-        custom_menu_1 = self.nametowidget(self.multiplayer_target_options.menuname)
-        self.multiplayer_target_options.config(font=font_tuple)
-        custom_menu_1.config(font=font_tuple)
-        #self.multiplayer_target_options.grid(row=3, column=3, sticky="e")
-        #self.multiplayer_target_options.config()
+        self.style = ttk.Style()
+        available_themes = self.style.theme_names()
+        print("Available themes:", available_themes)
 
         self.target_player = tk.StringVar()
         self.target_player.set("Enter player here")
         self.log_enabled = True
         self.race_director = False
+        self.theme = "awdark"
         self.config_file_path = os.path.join(self.VDSplits_folder, "config.txt")
+        config_defaults = {'target player':'Enter player here', 'log enabled':True, 'race director':False, 'theme':'awdark'}
         try:
             if os.path.exists(self.config_file_path):
                 cfg = json.load((open(self.config_file_path, "r")))
                 self.target_player.set(cfg['target player'])
                 self.log_enabled = cfg['log enabled']
                 self.race_director = cfg['race director']
+                self.theme = cfg['theme']
+                if self.theme in available_themes:
+                    self.style.theme_use(self.theme)
             else:
-                json.dump({'target player':'Enter player here', 'log enabled':True, 'race director':False}, open(self.config_file_path, "w"))
+                json.dump(config_defaults, open(self.config_file_path, "w"))
         except:
             print("Config file error, creating new one with default values")
-            json.dump({'target player':'Enter player here', 'log enabled':True, 'race director':False}, open(self.config_file_path, "w"))
+            json.dump(config_defaults, open(self.config_file_path, "w"))
+
+        self.style.configure('TButton', font=font_tuple, padding=5)
+        self.style.configure('TLabel', font=font_tuple, background='#483269', foreground='white')
+        self.style.configure('TCheckbutton', font=font_tuple, background='#483269', foreground='white')
+        self.style.configure('TEntry', font=font_tuple)
+        self.default_background = self.style.lookup('TButton', 'background')
+        self.style.configure('W.TButton', font=font_tuple, background=self.default_background)
+        self.style.configure('Q.TButton', font=font_tuple, background='#555500')
+
+        self.left_frame = tk.Frame(self, width=window_x, height=window_y, bg=self['bg'])
+        self.left_frame.grid(rowspan=4, stick="ew")
+        self.left_frame.grid_propagate(0)
+
+        self.load_splits_button = ttk.Button(self.left_frame, text="Load", command=self.load_splits)
+        self.load_splits_button.grid(column=0, row=0, sticky="w")
+        self.save_splits_button = ttk.Button(self.left_frame, text="Save", command=self.save_splits, style='W.TButton')
+        self.save_splits_button.grid(column=0, row=1, sticky="w")
+
+        self.clear_splits_button = ttk.Button(self.left_frame, text="Clear", command=self.clear_splits)
+        self.clear_splits_button.grid(column=0, row=2, sticky="w")
+
+        self.close_button = ttk.Button(self.left_frame, text="Close", command=self.close)
+        self.close_button.grid(column=3, row=0, sticky="e")
+
+        self.open_file = ""
+
+        self.open_file_label = ttk.Label(self.left_frame, text="Filename: NA")
+        self.open_file_label.grid(row=3, column=0, columnspan=2, sticky="w")
+        self.open_file_time = ttk.Label(self.left_frame, text="PB: -")
+        self.open_file_time.grid(row=4, column=0, columnspan=1, sticky="w")
+        self.autosave = tk.IntVar()
+        self.autosave.set(1)
+        self.auto_save_toggle = ttk.Checkbutton(self.left_frame, text="Autosave", variable=self.autosave)
+        self.auto_save_toggle.grid(row=1, column=3, sticky="e")
+        self.multiplayer = tk.IntVar()
+        self.multiplayer.set(0)
+        self.multiplayer_toggle = ttk.Checkbutton(self.left_frame, text="Multiplayer", variable=self.multiplayer, command=self.multiplayer_clicked)
+        self.multiplayer_toggle.grid(row=2, column=3, sticky="e")
+        self.options = ["Single Player: Time Attack", "Multiplayer: VS First Place"]
+        self.options_var = tk.StringVar()
+        self.options_var.set(self.options[0])
+        self.multiplayer_target_options = ttk.Combobox(self, textvariable=self.options_var, values=self.options)
+        self.multiplayer_target_options.config(font=font_tuple)
+
         self.logger.disabled = not self.log_enabled
 
         self.copy_frame = tk.Frame(self, bg=self['bg'])
@@ -345,27 +362,17 @@ class App(tk.Tk):
 
         self.race_director_var = tk.IntVar()
         self.race_director_var.set(self.race_director)
-        self.race_director_toggle = tk.Checkbutton(self.left_frame, text="Race Director", height=1, width=13, variable=self.race_director_var, anchor="w", font=font_tuple, command=self.race_director_clicked)
+        self.race_director_toggle = ttk.Checkbutton(self.left_frame, text="Race Director", variable=self.race_director_var, command=self.race_director_clicked)
         self.race_director_toggle.grid(row=3, column=3, sticky="e")
 
-        self.target_player_entry = tk.Entry(self.left_frame, textvariable=self.target_player, justify="center", font=font_tuple)
+        self.target_player_entry = ttk.Entry(self.left_frame, textvariable=self.target_player, justify="center")
         self.target_player_entry.grid(row=4, column=3, columnspan=1)
 
-        #temporary or debugging labels are commented out, they still exist put are not placed on the window
-
-        self.text = tk.Label(self, text="Debug string", font=font_tuple,fg='WHITE', bg=self['bg'])
-        #self.text.grid(row=4, columnspan=4)
-
-        self.racetype_label = tk.Label(self, text="Race type", font=font_tuple, fg='WHITE', bg=self['bg'])
-        #self.racetype_label.grid(columnspan=4)
-
-        self.racestatus_label = tk.Label(self, text="Race status", font=font_tuple, fg='WHITE', bg=self['bg'])
-        #self.racestatus_label.grid(columnspan=4)
-
-        self.countdown_label = tk.Label(self, text="Countdown", font=font_tuple, fg='WHITE', bg=self['bg'])
-        #self.countdown_label.grid(columnspan=4)
-
-        self.split_label = tk.Label(self.left_frame, text="Splits", font="Consolas 18 bold", fg='WHITE', bg=self['bg'])
+        self.text = ttk.Label(self, text="Debug string")
+        self.racetype_label = ttk.Label(self, text="Race type")
+        self.racestatus_label = ttk.Label(self, text="Race status")
+        self.countdown_label = ttk.Label(self, text="Countdown")
+        self.split_label = ttk.Label(self.left_frame, text="Splits", font="Consolas 18 bold")
         self.split_label.grid(columnspan=4)
 
         self.left_frame.grid_columnconfigure(1, weight=1)
@@ -382,9 +389,8 @@ class App(tk.Tk):
             self.uri = "ws://localhost:8765"
             self.fake_messages = True
             self.geometry("+100+100")
-            #self.close()
 
-        self.clear_copy_button = tk.Button(self.copy_frame, text="Clear copy buttons", font=("Consolas", 12, "normal"), command=self.clear_copy_buttons)
+        self.clear_copy_button = ttk.Button(self.copy_frame, text="Clear copy buttons", command=self.clear_copy_buttons)
         self.clear_copy_button.grid(sticky="nw")
         self.copy_button_list = []
 
@@ -403,10 +409,10 @@ class App(tk.Tk):
         self.clipboard_append(text)
         for button in self.copy_button_list:
             if button.cget("text") == player:
-                button.configure(bg="SystemButtonFace")
+                button.configure(style='TButton')
 
     def add_copy_button(self, player, time):
-        self.copy_button_list.append(tk.Button(self.copy_frame, text=f"{player}", bg="#ffc030", font=("Consolas", 12, "normal"), command=lambda: self.clipboard_update(str(time), player)))
+        self.copy_button_list.append(ttk.Button(self.copy_frame, text=f"{player}", style='Q.TButton', command=lambda: self.clipboard_update(str(time), player)))
         for button in self.copy_button_list:
             button.grid(sticky="nw")
 
@@ -432,7 +438,6 @@ class App(tk.Tk):
         else:
             json.dump({'target player':self.target_player.get()}, open(self.config_file_path, "w"))
             if not filename:
-                #cd = os.path.dirname(os.path.realpath(__file__))
                 file = filedialog.askopenfile("rb", initialdir=self.VDSplits_folder)
                 self.open_file = file.name
                 self.open_file_label.config(text=os.path.basename(file.name))
@@ -442,7 +447,7 @@ class App(tk.Tk):
             self.pl.set_player_splits(self.target_player.get(), file_splits)
             self.pb = file_splits[[*file_splits.keys()][-1]]
             self.open_file_time.config(text=f"PB: {self.pb}s")
-            self.split_label.config(text="-", fg='WHITE')
+            self.split_label.config(text="-", foreground='WHITE')
 
     def save_splits(self, filename=None):
         if self.target_player.get() == "Enter player here":
@@ -450,25 +455,20 @@ class App(tk.Tk):
         else:
             json.dump({'target player':self.target_player.get()}, open(self.config_file_path, "w"))
             if not filename:
-                #cd = os.path.dirname(os.path.realpath(__file__))
                 file = filedialog.asksaveasfile("wb", initialdir=self.VDSplits_folder)
                 self.open_file = file.name
                 self.open_file_label.config(text=os.path.basename(file.name))
             else:
                 file = open(filename, "wb")
             pickle.dump(self.pl.get_player_splits(self.target_player.get()), file)
-            self.save_splits_button.configure(bg='SystemButtonFace')
-            #self.split_label.config(text="-", fg='WHITE')
+            self.style.configure('W.TButton', background=self.default_background)
 
     def clear_splits(self):
         self.pl.set_player_splits(self.target_player.get(), {})
-        self.split_label.config(text="-", fg='WHITE')
+        self.split_label.config(text="-", foreground='WHITE')
         self.open_file = None
         self.open_file_label.config(text="Filename: NA")
         self.open_file_time.config(text="PB: -")
-    
-    #def auto_save_change(self):
-    #    print(self.autosave.get())
 
     async def updater(self, interval): # used by one of the loop tasks to keep the tkinter window responsive
         while True:
@@ -493,7 +493,7 @@ class App(tk.Tk):
         return None
 
     def close(self):
-        json.dump({'target player':self.target_player.get(), 'log enabled':self.log_enabled, 'race director':self.race_director}, open(self.config_file_path, "w"))
+        json.dump({'target player':self.target_player.get(), 'log enabled':self.log_enabled, 'race director':self.race_director, 'theme':self.theme}, open(self.config_file_path, "w"))
         for task in self.tasks:
             task.cancel()
         self.loop.stop()
