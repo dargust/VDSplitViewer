@@ -15,6 +15,8 @@ pywin32gui -> pip install pywin32
 
 websockets -> pip install websockets
 
+<br></br>if you want to build the executable from source you also need pyinstaller -> pip instal pyinstaller -> pyinstaller VDSplitViewer.spec
+
 ## tested with python 3.10.4
 ![alt text](https://github.com/dargust/VDSplitViewer/blob/main/example.png?raw=true)
 
