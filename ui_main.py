@@ -83,10 +83,12 @@ async def read_websocket(app):
                                 countValue = "Go!"
                             app.split_label.config(text=countValue, foreground="WHITE")
                             message = f"Countdown: {countValue}"
+                            app.show_buttons(False)
                         elif "racestatus" in f:
                             raceAction = f['racestatus']['raceAction']
                             if raceAction == "race finished":
                                 app.countdown_label.config(text="Stopped")
+                                app.show_buttons(True)
                             app.racestatus_label.config(text=raceAction)
                             message = f"RaceStatus update: {raceAction}"
                         elif "racetype" in f:
@@ -272,7 +274,7 @@ class App(tk.Tk):
         x = int(bbox[0]+bbox[2]/2)-window_x//2
         y = bbox[1]+45
         self.geometry("+"+str(x)+"+"+str(y))
-    
+
         self.overrideredirect(1) # makes the border around the window disappear
 
         self.attributes('-transparentcolor','#483269', '-topmost', 'True') # make all items with this colour transparent
@@ -299,8 +301,10 @@ class App(tk.Tk):
         self.log_enabled = True
         self.race_director = False
         self.theme = "awdark"
+        self.split_font_size = 18
+        self.auto_hide = False
         self.config_file_path = os.path.join(self.VDSplits_folder, "config.txt")
-        config_defaults = {'target player':'Enter player here', 'log enabled':True, 'race director':False, 'theme':'awdark', 'offset from top':0}
+        config_defaults = {'target player':'Enter player here', 'log enabled':True, 'race director':False, 'theme':'awdark', 'offset from top':0, 'font size':18, 'auto hide':False}
         try:
             if os.path.exists(self.config_file_path):
                 cfg = json.load((open(self.config_file_path, "r")))
@@ -308,7 +312,9 @@ class App(tk.Tk):
                 self.log_enabled = cfg['log enabled']
                 self.race_director = cfg['race director']
                 self.theme = cfg['theme']
-                self.OFFSET = cfg['offset from top'] 
+                self.OFFSET = cfg['offset from top']
+                self.split_font_size = cfg['font size']
+                self.auto_hide = cfg['auto hide']
             else:
                 json.dump(config_defaults, open(self.config_file_path, "w"))
         except:
@@ -381,13 +387,15 @@ class App(tk.Tk):
         self.countdown_label = ttk.Label(self, text="Countdown")
         self.pad_frame = tk.Frame(self.left_frame, bg=self['bg'], height=self.OFFSET)#self['bg'], height=OFFSET)
         self.pad_frame.grid(columnspan=4, stick="ns")
-        self.split_label = ttk.Label(self.left_frame, text="Splits", font="Consolas 18 bold", anchor="s")
+        self.split_label = ttk.Label(self.left_frame, text="VDSplitViewer", font=f"Consolas {self.split_font_size} bold", anchor="s")
         self.split_label.grid(columnspan=4, sticky="s")
+
+        self.foundation_frame = tk.Frame(self.left_frame, bg=self['bg'], height=158)
+        self.foundation_frame.grid(row=0, rowspan=5, column=5, stick="w")
 
         self.left_frame.grid_columnconfigure(1, weight=1)
         self.left_frame.grid_columnconfigure(2, weight=1)
         self.grid_columnconfigure(0, weight=1)
-        #self.grid_rowconfigure(2, weight=1)
 
         localip = self.find_local_ip()
         self.uri = ""
@@ -468,7 +476,7 @@ class App(tk.Tk):
         if self.target_player.get() == "Enter player here":
             print("No player selected")
         else:
-            json.dump({'target player':self.target_player.get()}, open(self.config_file_path, "w"))
+            json.dump({'target player':self.target_player.get(), 'log enabled':self.log_enabled, 'race director':self.race_director, 'theme':self.theme, 'offset from top':self.OFFSET, 'font size':self.split_font_size, 'auto hide': self.auto_hide}, open(self.config_file_path, "w"))
             if not filename:
                 file = filedialog.asksaveasfile("wb", initialdir=self.VDSplits_folder)
                 self.open_file = file.name
@@ -510,8 +518,31 @@ class App(tk.Tk):
                     continue
         return None
 
+    def show_buttons(self, show=True):
+        if self.auto_hide:
+            if show:
+                self.load_splits_button.grid(column=0, row=0, sticky="w")
+                self.save_splits_button.grid(column=0, row=1, sticky="w")
+                self.clear_splits_button.grid(column=0, row=2, sticky="w")
+                self.open_file_label.grid(row=3, column=0, columnspan=2, sticky="w")
+                self.open_file_time.grid(row=4, column=0, columnspan=1, sticky="w")
+                self.auto_save_toggle.grid(row=1, column=3, sticky="e")
+                self.multiplayer_toggle.grid(row=2, column=3, sticky="e")
+                self.race_director_toggle.grid(row=3, column=3, sticky="e")
+                self.target_player_entry.grid(row=4, column=3, columnspan=1)
+            else:
+                self.load_splits_button.grid_forget()
+                self.save_splits_button.grid_forget()
+                self.clear_splits_button.grid_forget()
+                self.open_file_label.grid_forget()
+                self.open_file_time.grid_forget()
+                self.auto_save_toggle.grid_forget()
+                self.multiplayer_toggle.grid_forget()
+                self.race_director_toggle.grid_forget()
+                self.target_player_entry.grid_forget()
+
     def close(self):
-        json.dump({'target player':self.target_player.get(), 'log enabled':self.log_enabled, 'race director':self.race_director, 'theme':self.theme, 'offset from top':self.OFFSET}, open(self.config_file_path, "w"))
+        json.dump({'target player':self.target_player.get(), 'log enabled':self.log_enabled, 'race director':self.race_director, 'theme':self.theme, 'offset from top':self.OFFSET, 'font size':self.split_font_size, 'auto hide':self.auto_hide}, open(self.config_file_path, "w"))
         for task in self.tasks:
             task.cancel()
         self.loop.stop()
