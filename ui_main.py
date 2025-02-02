@@ -22,7 +22,7 @@ import sys
 import requests
 import tkinter.ttk as ttk
 
-VERSION = "v0.3.1.1"
+VERSION = "v0.3.2.3"
 
 bbox = (0,0,0,0)
 def callback(hwnd, extra):
@@ -261,8 +261,10 @@ class App(tk.Tk):
         self.tasks.append(loop.create_task(self.updater(interval)))
         self.tasks.append(loop.create_task(read_websocket(self)))
 
-        window_x = 510
-        window_y = 200
+        self.OFFSET = 0
+
+        window_x = 520
+        window_y = 900
         font_tuple = ("Consolas", 12, "normal")
 
         self.withdraw()
@@ -298,7 +300,7 @@ class App(tk.Tk):
         self.race_director = False
         self.theme = "awdark"
         self.config_file_path = os.path.join(self.VDSplits_folder, "config.txt")
-        config_defaults = {'target player':'Enter player here', 'log enabled':True, 'race director':False, 'theme':'awdark'}
+        config_defaults = {'target player':'Enter player here', 'log enabled':True, 'race director':False, 'theme':'awdark', 'offset from top':0}
         try:
             if os.path.exists(self.config_file_path):
                 cfg = json.load((open(self.config_file_path, "r")))
@@ -306,13 +308,15 @@ class App(tk.Tk):
                 self.log_enabled = cfg['log enabled']
                 self.race_director = cfg['race director']
                 self.theme = cfg['theme']
-                if self.theme in available_themes:
-                    self.style.theme_use(self.theme)
+                self.OFFSET = cfg['offset from top'] 
             else:
                 json.dump(config_defaults, open(self.config_file_path, "w"))
         except:
             print("Config file error, creating new one with default values")
             json.dump(config_defaults, open(self.config_file_path, "w"))
+        
+        if self.theme in available_themes:
+            self.style.theme_use(self.theme)
 
         self.style.configure('TButton', font=font_tuple, padding=5)
         self.style.configure('TLabel', font=font_tuple, background='#483269', foreground='white')
@@ -375,18 +379,22 @@ class App(tk.Tk):
         self.racetype_label = ttk.Label(self, text="Race type")
         self.racestatus_label = ttk.Label(self, text="Race status")
         self.countdown_label = ttk.Label(self, text="Countdown")
-        self.split_label = ttk.Label(self.left_frame, text="Splits", font="Consolas 18 bold")
-        self.split_label.grid(columnspan=4)
+        self.pad_frame = tk.Frame(self.left_frame, bg=self['bg'], height=self.OFFSET)#self['bg'], height=OFFSET)
+        self.pad_frame.grid(columnspan=4, stick="ns")
+        self.split_label = ttk.Label(self.left_frame, text="Splits", font="Consolas 18 bold", anchor="s")
+        self.split_label.grid(columnspan=4, sticky="s")
 
         self.left_frame.grid_columnconfigure(1, weight=1)
         self.left_frame.grid_columnconfigure(2, weight=1)
         self.grid_columnconfigure(0, weight=1)
+        #self.grid_rowconfigure(2, weight=1)
 
         localip = self.find_local_ip()
         self.uri = ""
         self.fake_messages = False
         if localip:
             self.uri = "ws://{}/velocidrone".format(localip)
+            print(localip)
         else:
             print("WARNING!!! No velocidrone instance found, using fake messages")
             self.uri = "ws://localhost:8765"
@@ -494,13 +502,16 @@ class App(tk.Tk):
                     local_addr = f"{conn.laddr.ip}:{conn.laddr.port}" if conn.laddr else "N/A"
                     if process.name() == "velocidrone.exe":
                         if local_addr.endswith("60003"):
-                            return local_addr
+                            if not is_ipv6(conn.laddr.ip):
+                                return local_addr
+                            else:
+                                return f"[{conn.laddr.ip}]:{conn.laddr.port}" if conn.laddr else "N/A"
                 except (psutil.AccessDenied, psutil.NoSuchProcess):
                     continue
         return None
 
     def close(self):
-        json.dump({'target player':self.target_player.get(), 'log enabled':self.log_enabled, 'race director':self.race_director, 'theme':self.theme}, open(self.config_file_path, "w"))
+        json.dump({'target player':self.target_player.get(), 'log enabled':self.log_enabled, 'race director':self.race_director, 'theme':self.theme, 'offset from top':self.OFFSET}, open(self.config_file_path, "w"))
         for task in self.tasks:
             task.cancel()
         self.loop.stop()
@@ -527,6 +538,9 @@ def check_latest_version():
     except requests.RequestException as e:
         print(f"Error checking latest version: {e}")
     return False
+
+def is_ipv6(addr):
+    return ":" in addr
 
 def main():
     if "--version" in sys.argv:
