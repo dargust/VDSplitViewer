@@ -22,7 +22,7 @@ import sys
 import requests
 import tkinter.ttk as ttk
 
-VERSION = "v0.3.2.3"
+VERSION = "v0.3.3.1"
 
 bbox = (0,0,0,0)
 def callback(hwnd, extra):
