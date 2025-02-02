@@ -1,7 +1,7 @@
 # VDSplitViewer
 Python tkinter overlay for velocidrone
 
-## usage:
+## usage (with velocidrone already running):
 python ui_main.py
 
 or (to get rid of console window:) pythonw ui_main.py
