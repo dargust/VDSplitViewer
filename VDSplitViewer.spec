@@ -1,8 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-
 block_cipher = None
-
 
 a = Analysis(
     ['ui_main.py'],
@@ -13,7 +11,7 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=['pygame','PyQt5','PyQt6','PySide2','PySide6', 'sqlite3'],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,

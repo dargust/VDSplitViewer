@@ -24,9 +24,9 @@ import tkinter.ttk as ttk
 import re
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-import math
+from math import nan
 
-VERSION = "v0.4.0.1"
+VERSION = "v0.4.0.3"
 
 bbox = (0,0,0,0)
 def callback(hwnd, extra):
@@ -319,14 +319,14 @@ class LivePlotWidget(tk.Frame):
         
         self.ax.plot(x,pb_splits, label="PB")
         lap_1_splits = [v for k,v in self.lap_1_splits.items()]
-        lap_2_splits = [math.nan] * len(lap_1_splits)
-        lap_1_splits += [math.nan] * (N - len(lap_1_splits))
+        lap_2_splits = [nan] * len(lap_1_splits)
+        lap_1_splits += [nan] * (N - len(lap_1_splits))
         lap_2_splits += [v for k,v in self.lap_2_splits.items()]
         a = len(lap_2_splits)
-        lap_2_splits += [math.nan] * (N - len(lap_2_splits))
-        lap_3_splits = [math.nan] * a
+        lap_2_splits += [nan] * (N - len(lap_2_splits))
+        lap_3_splits = [nan] * a
         lap_3_splits += [v for k,v in self.lap_3_splits.items()]
-        lap_3_splits += [math.nan] * (N - len(lap_3_splits))
+        lap_3_splits += [nan] * (N - len(lap_3_splits))
         #print("len x: {}, len y: {}, lap 1: {}, lap 2: {}, lap 3: {}".format(len(x),len(pb_splits),len(lap_1_splits),len(lap_2_splits),len(lap_3_splits)))
         self.ax.plot(x,lap_1_splits, label="Lap 1", marker="x")
         self.ax.plot(x,lap_2_splits, label="Lap 2", marker="x")
