@@ -21,6 +21,9 @@ import logging
 import sys
 import requests
 import tkinter.ttk as ttk
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import math
 
 VERSION = "v0.3.3.1"
 
@@ -81,6 +84,7 @@ async def read_websocket(app):
                             countValue = f['countdown']['countValue']
                             if countValue == "0":
                                 countValue = "Go!"
+                                app.graph_frame.clear_plot()
                             app.split_label.config(text=countValue, foreground="WHITE")
                             message = f"Countdown: {countValue}"
                             app.show_buttons(False)
@@ -192,6 +196,8 @@ class PlayerList():
                     if app.target_player.get() == player_name:
                         #print("latest personal time:", new_time)
                         split = new_time - old_time
+                    if not finished:
+                        app.graph_frame.update_plot(uig, new_time, split)
                     colour = self.number_to_hex_color(split)
                     if split <= 0.0: colour = "light green"
                     if split <-1.5: colour = "green"
@@ -249,6 +255,90 @@ class PlayerList():
     def set_player_splits(self, player_name, new_splits):
         i = self.get_index_of_player(player_name)
         self.list[i].comparison_splits = new_splits
+
+class LivePlotWidget(tk.Frame):
+    def __init__(self, parent, *args, **kwargs):
+        super().__init__(parent, *args, **kwargs)
+        
+        # Create a figure and axis with specified width and height
+        self.fig, self.ax = plt.subplots(figsize=(7, 1))
+        #self.fig.set_facecolor('#483269')
+        self.canvas = FigureCanvasTkAgg(self.fig, master=self)
+        self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        
+        # Control frame
+        control_frame = ttk.Frame(self)
+        control_frame.pack(side=tk.BOTTOM, fill=tk.X)
+        
+        self.num_plots_var = tk.IntVar(value=3)
+        self.plot_entry = ttk.Entry(control_frame, textvariable=self.num_plots_var, width=5)
+        self.plot_entry.pack(side=tk.LEFT, padx=5)
+        
+        self.update_button = ttk.Button(control_frame, text="Change to time", command=self.toggle_time_mode)
+        self.update_button.pack(side=tk.LEFT, padx=5)
+
+        #self.ax.set_facecolor('#483269')
+
+        self.lap_1_splits = {}
+        self.lap_2_splits = {}
+        self.lap_3_splits = {}
+        self.x_plot = {}
+        self.highest_gate = 0
+
+        self.time_mode = False
+        
+        #self.update_plot('1-1', 2.2, 0.01)  # Initial plot
+        #self.update_plot('1-2', 2.6, -0.3)
+    
+    def toggle_time_mode(self):
+        if self.time_mode:
+            self.time_mode = False
+            self.update_button.config(text="Change to time")
+        else:
+            self.time_mode = True
+            self.update_button.config(text="Change to gates")
+
+    def update_plot(self, uig, time, split):
+        self.ax.clear()
+        num_plots = self.num_plots_var.get()
+        lap, gate = uig.split("-")
+        if lap == '1':
+            self.lap_1_splits[gate] = split
+        elif lap == '2':
+            self.lap_2_splits[gate] = split
+        elif lap == '3':
+            self.lap_3_splits[gate] = split
+        if self.time_mode:
+            self.x_plot[uig] = time
+        else:
+            self.x_plot[uig] = int(gate)
+        x = [v for k,v in self.x_plot.items()]
+        N = len(x)
+        pb_splits = [0 for i in x]
+        
+        self.ax.plot(x,pb_splits, label="PB")
+        lap_1_splits = [v for k,v in self.lap_1_splits.items()]
+        lap_2_splits = [math.nan] * len(lap_1_splits)
+        lap_1_splits += [math.nan] * (N - len(lap_1_splits))
+        lap_2_splits += [v for k,v in self.lap_2_splits.items()]
+        a = len(lap_2_splits)
+        lap_2_splits += [math.nan] * (N - len(lap_2_splits))
+        lap_3_splits = [math.nan] * a
+        lap_3_splits += [v for k,v in self.lap_3_splits.items()]
+        lap_3_splits += [math.nan] * (N - len(lap_3_splits))
+        #print("len x: {}, len y: {}, lap 1: {}, lap 2: {}, lap 3: {}".format(len(x),len(pb_splits),len(lap_1_splits),len(lap_2_splits),len(lap_3_splits)))
+        self.ax.plot(x,lap_1_splits, label="Lap 1", marker="x")
+        self.ax.plot(x,lap_2_splits, label="Lap 2", marker="x")
+        self.ax.plot(x,lap_3_splits, label="Lap 3", marker="x")
+        
+        self.ax.legend()
+        self.canvas.draw()
+
+    def clear_plot(self):
+        self.lap_1_splits = {}
+        self.lap_2_splits = {}
+        self.lap_3_splits = {}
+        self.x_plot = {}
 
 class App(tk.Tk):
     def __init__(self, loop, interval=1/60):
@@ -393,6 +483,9 @@ class App(tk.Tk):
         self.foundation_frame = tk.Frame(self.left_frame, bg=self['bg'], height=158)
         self.foundation_frame.grid(row=0, rowspan=5, column=5, stick="w")
 
+        self.graph_frame = LivePlotWidget(self)
+        #self.graph_frame.grid(row=1, column=1, columnspan=2, sticky="nesw")
+
         self.left_frame.grid_columnconfigure(1, weight=1)
         self.left_frame.grid_columnconfigure(2, weight=1)
         self.grid_columnconfigure(0, weight=1)
@@ -419,8 +512,20 @@ class App(tk.Tk):
 
         self.pl = PlayerList()
         self.pb = "-"
+
+        self.bind("<Control-g>", self.toggle_graph)
+        self.show_graph = False
+
         self.deiconify()
 
+    def toggle_graph(self, event):
+        if self.show_graph:
+            self.show_graph = False
+            self.graph_frame.grid_forget()
+        else:
+            self.show_graph = True
+            self.graph_frame.grid(row=1, column=1, columnspan=2, sticky="nesw")
+        
     def clear_copy_buttons(self):
         for button in self.copy_button_list:
             button.destroy()
