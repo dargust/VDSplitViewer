@@ -21,11 +21,12 @@ import logging
 import sys
 import requests
 import tkinter.ttk as ttk
+import re
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import math
 
-VERSION = "v0.3.3.1"
+VERSION = "v0.4.0.1"
 
 bbox = (0,0,0,0)
 def callback(hwnd, extra):
@@ -658,6 +659,17 @@ def print_version():
     print(f"Version: {VERSION}")
     sys.exit(0)
 
+def find_total_version(version_string):
+    version_matcher = re.compile("v(\d+)\.(\d+)\.(\d+).(\d+)")
+    match = version_matcher.match(version_string)
+    major = int(match.group(1))
+    minor = int(match.group(2))
+    fix = int(match.group(3))
+    build = int(match.group(4))
+    total_version = major*1000000 + minor*10000 + fix*100 + build
+    print(version_string, total_version)
+    return(total_version)
+
 def check_latest_version():
     url = "https://api.github.com/repos/dargust/VDSplitViewer/releases"
     try:
@@ -666,7 +678,9 @@ def check_latest_version():
         tags = response.json()
         if tags:
             latest_tag = tags[0]['name']
-            if VERSION not in latest_tag:
+            current_numeric_version = find_total_version(VERSION)
+            latest_numeric_version = find_total_version(latest_tag)
+            if latest_numeric_version > current_numeric_version:
                 print(f"New version available: {latest_tag}")
                 return True
         else:
