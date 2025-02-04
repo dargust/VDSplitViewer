@@ -26,7 +26,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from math import nan
 
-VERSION = "v0.4.0.3"
+VERSION = "v0.4.0.4"
 
 bbox = (0,0,0,0)
 def callback(hwnd, extra):
@@ -346,7 +346,7 @@ class App(tk.Tk):
         super().__init__()
 
         win32gui.EnumWindows(callback, None)
-        print(bbox)
+        #print(bbox)
 
         self.loop = loop
         self.protocol("WM_DELETE_WINDOW", self.close) # unsure if necessary 
@@ -667,7 +667,7 @@ def find_total_version(version_string):
     fix = int(match.group(3))
     build = int(match.group(4))
     total_version = major*1000000 + minor*10000 + fix*100 + build
-    print(version_string, total_version)
+    #print(version_string, total_version)
     return(total_version)
 
 def check_latest_version():
@@ -702,4 +702,6 @@ def main():
         loop.close()
 
 if __name__ == "__main__":
+    print("Running VDSplitViewer")
+    print("The depricated warning is expected, don't worry :)")
     main()
