@@ -1,3 +1,6 @@
+# Ignore certs directory
+certs/
+
 # Ignore dist directory
 dist/
 
