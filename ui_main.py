@@ -14,7 +14,8 @@ import asyncio
 import websockets
 import json
 import psutil
-import win32gui # type: ignore
+import win32gui
+import win32con
 import pickle
 import os
 import logging
@@ -23,7 +24,9 @@ import requests
 import tkinter.ttk as ttk
 import re
 
-VERSION = "v0.4.0.5"
+from VDSplitViewerClasses import PlayerList, LivePlotWidget
+
+VERSION = "v0.4.1.5"
 
 graphing = False
 if graphing:
@@ -47,6 +50,17 @@ def callback(hwnd, extra):
         print("\tLocation: (%d, %d)" % (x, y))
         print("\t    Size: (%d, %d)" % (w, h))
         bbox = (x,y,w,h)
+
+def set_focus_to_window(window_title):
+    # Find the window by its title
+    hwnd = win32gui.FindWindow(None, window_title)
+    if hwnd:
+        # Bring the window to the foreground
+        win32gui.SetForegroundWindow(hwnd)
+        # Optionally, you can also bring the window to the top
+        win32gui.ShowWindow(hwnd, win32con.SW_SHOW)
+    else:
+        print(f"Window with title '{window_title}' not found.")
 
 async def start_fake_messages(websocket):
     await websocket.send('serve')
@@ -105,6 +119,8 @@ async def read_websocket(app):
                             raceFormat = f['racetype']['raceFormat']
                             raceLaps = f['racetype']['raceLaps']
                             app.racetype_label.config(text=f"{raceMode}, {raceFormat}, Laps: {raceLaps}")
+                        elif "spectatorChange" in f:
+                            pass
                         else:
                             print("unhandled message:", f)
                     except json.JSONDecodeError as e:
@@ -121,237 +137,6 @@ async def read_websocket(app):
         except Exception as e:
             await asyncio.sleep(1) # if something goes wrong with the connection, don't spam connection attempts
             print(e)
-
-class Player():
-    def __init__(self, name):
-        self.name = name
-        self.splits = {}
-        self.comparison_splits = {}
-
-class PlayerList():
-    def __init__(self):
-        self.list = []
-        self.last_message_data = {}
-        self.highest_gate = "0"
-        self.highest_lap = "0"
-        self.first_place_time = ""
-        self.first_place_player = ""
-        self.first_place_index = 0
-        self.finished_list = []
-
-    def get_index_of_player(self, player_name):
-        j = 0
-        for i in range(len(self.list)):
-            j += 1
-            if self.list[i].name == player_name:
-                return(i)
-        self.add_player_to_list(player_name)
-        return(j)
-    
-    def add_player_to_list(self, player_name):
-        self.list.append(Player(player_name))
-
-    def number_to_hex_color(self, value):
-        if value < 0: value = 0
-        elif value > 1.5: value = 1.5
-
-        # Normalize the value to be between 0 and 1
-        normalized_value = value / 1.5
-
-        # Calculate the red and green components
-        red = 255
-        green = int(255 * (1 - normalized_value / 1.2))  # Adjust the range for green component
-
-        # Blue component is always 0 for the yellow to red gradient
-        blue = int(100 * (1 - normalized_value))
-
-        # Convert to hex
-        hex_color = f'#{red:02x}{green:02x}{blue:02x}'
-        return hex_color
-
-    def process_racedata(self, player_name, data, app):
-        #print(player_name, data)
-        if player_name not in self.finished_list:
-            if data['finished'] == "True":
-                self.finished_list.append(player_name)
-                app.add_copy_button(player_name, data['time'])
-        if not data == self.last_message_data: # and player_name == app.target_player.get()
-            i = self.get_index_of_player(player_name)
-            gate = data['gate']
-            lap = data['lap']
-            time = data['time']
-            position = int(data['position'])
-            if position == 1 and app.options_var.get() == "Multiplayer: VS First Place":
-                self.first_place_player = player_name
-                self.first_place_index = self.get_index_of_player(self.first_place_player)
-            uig = f"{lap}-{gate}"
-            #print(player_name, position, uig, time)
-            mp = True if app.options_var.get() == "Multiplayer: VS First Place" else False
-            if player_name == app.target_player.get() and (not player_name == self.first_place_player or not mp):
-                finished = True if data['finished'] == "True" else False
-                self.list[i].splits[uig] = time
-                try:
-                    if app.options_var.get() == "Single Player: Time Attack":
-                        old_time = float(self.list[i].comparison_splits[uig])
-                    elif app.options_var.get() == "Multiplayer: VS First Place":
-                        old_time = float(self.list[self.first_place_index].splits[uig])
-                    elif app.options_var.get() == "Multiplayer: VS Rival":
-                        old_time = float(self.list[self.first_place_index].splits[uig])
-                    new_time = float(time)
-                    if app.target_player.get() == player_name:
-                        #print("latest personal time:", new_time)
-                        split = new_time - old_time
-                    if not finished:
-                        app.graph_frame.update_plot(uig, new_time, split)
-                    colour = self.number_to_hex_color(split)
-                    if split <= 0.0: colour = "light green"
-                    if split <-1.5: colour = "green"
-                    sign = "+" if split >= 0 else ""
-                    #print("old time:", old_time, "new time:", new_time, "diff:", split)
-                    app.split_label.config(text="{}{:.3f}".format(sign, split), foreground=colour)
-                except Exception as e:
-                    print(e)
-                    app.split_label.config(text="{:.3f}".format(float(time)), foreground="WHITE")
-                if finished:
-                    if app.target_player.get() == player_name:
-                        self.highest_gate = "0"
-                        self.highest_lap = "0"
-                        self.first_place_time = "0"
-                    try:
-                        if float(self.list[i].comparison_splits[uig]) > float(self.list[i].splits[uig]):
-                            print("new pb, overwriting splits...")
-                            #app.save_splits_button.configure(background="yellow")
-                            app.style.configure('W.TButton', background="#555500")
-                            self.list[i].comparison_splits = self.list[i].splits.copy()
-                            app.pb = self.list[i].splits[uig]
-                            app.open_file_time.config(text=f"PB: {app.pb}s")
-                            if app.autosave.get() and app.open_file:
-                                app.save_splits(app.open_file)
-
-                    except KeyError as e:
-                        print(e, "no comparison found, overwriting splits...")
-                        #app.save_splits_button.configure(background="yellow")
-                        app.style.configure('W.TButton', background="#555500")
-                        self.list[i].comparison_splits = self.list[i].splits.copy()
-                        app.pb = self.list[i].splits[uig]
-                        app.open_file_time.config(text=f"PB: {app.pb}s")
-                        if app.autosave.get() and app.open_file:
-                            app.save_splits(app.open_file)
-            self.list[i].splits[uig] = time
-            if position == 2 and self.first_place_player == app.target_player.get():
-                #print("second place: {}, first place: {}, comparison gate: {}".format(player_name, self.first_place_player, uig))
-                new_time = float(time)
-                old_time = float(self.list[self.first_place_index].splits[uig])
-                split = old_time - new_time
-                colour = self.number_to_hex_color(split)
-                if split <= 0.0: colour = "light green"
-                if split <-1.5: colour = "#4FC42C"
-                sign = "+" if split >= 0 else ""
-                app.split_label.config(text="{}{:.3f}".format(sign, split), foreground=colour)
-            elif mp:
-                pass
-                #app.split_label.config(text=time, fg="BLUE")
-        self.last_message_data = data
-    
-    def get_player_splits(self, player_name):
-        i = self.get_index_of_player(player_name)
-        return(self.list[i].comparison_splits)
-    
-    def set_player_splits(self, player_name, new_splits):
-        i = self.get_index_of_player(player_name)
-        self.list[i].comparison_splits = new_splits
-if graphing:
-    class LivePlotWidget(tk.Frame):
-        def __init__(self, parent, *args, **kwargs):
-            super().__init__(parent, *args, **kwargs)
-            
-            # Create a figure and axis with specified width and height
-            self.fig, self.ax = plt.subplots(figsize=(7, 1))
-            #self.fig.set_facecolor('#483269')
-            self.canvas = FigureCanvasTkAgg(self.fig, master=self)
-            self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-            
-            # Control frame
-            control_frame = ttk.Frame(self)
-            control_frame.pack(side=tk.BOTTOM, fill=tk.X)
-            
-            self.num_plots_var = tk.IntVar(value=3)
-            self.plot_entry = ttk.Entry(control_frame, textvariable=self.num_plots_var, width=5)
-            self.plot_entry.pack(side=tk.LEFT, padx=5)
-            
-            self.update_button = ttk.Button(control_frame, text="Change to time", command=self.toggle_time_mode)
-            self.update_button.pack(side=tk.LEFT, padx=5)
-
-            #self.ax.set_facecolor('#483269')
-
-            self.lap_1_splits = {}
-            self.lap_2_splits = {}
-            self.lap_3_splits = {}
-            self.x_plot = {}
-            self.highest_gate = 0
-
-            self.time_mode = False
-            
-            #self.update_plot('1-1', 2.2, 0.01)  # Initial plot
-            #self.update_plot('1-2', 2.6, -0.3)
-        
-        def toggle_time_mode(self):
-            if self.time_mode:
-                self.time_mode = False
-                self.update_button.config(text="Change to time")
-            else:
-                self.time_mode = True
-                self.update_button.config(text="Change to gates")
-
-        def update_plot(self, uig, time, split):
-            self.ax.clear()
-            num_plots = self.num_plots_var.get()
-            lap, gate = uig.split("-")
-            if lap == '1':
-                self.lap_1_splits[gate] = split
-            elif lap == '2':
-                self.lap_2_splits[gate] = split
-            elif lap == '3':
-                self.lap_3_splits[gate] = split
-            if self.time_mode:
-                self.x_plot[uig] = time
-            else:
-                self.x_plot[uig] = int(gate)
-            x = [v for k,v in self.x_plot.items()]
-            N = len(x)
-            pb_splits = [0 for i in x]
-            
-            self.ax.plot(x,pb_splits, label="PB")
-            lap_1_splits = [v for k,v in self.lap_1_splits.items()]
-            lap_2_splits = [nan] * len(lap_1_splits)
-            lap_1_splits += [nan] * (N - len(lap_1_splits))
-            lap_2_splits += [v for k,v in self.lap_2_splits.items()]
-            a = len(lap_2_splits)
-            lap_2_splits += [nan] * (N - len(lap_2_splits))
-            lap_3_splits = [nan] * a
-            lap_3_splits += [v for k,v in self.lap_3_splits.items()]
-            lap_3_splits += [nan] * (N - len(lap_3_splits))
-            #print("len x: {}, len y: {}, lap 1: {}, lap 2: {}, lap 3: {}".format(len(x),len(pb_splits),len(lap_1_splits),len(lap_2_splits),len(lap_3_splits)))
-            self.ax.plot(x,lap_1_splits, label="Lap 1", marker="x")
-            self.ax.plot(x,lap_2_splits, label="Lap 2", marker="x")
-            self.ax.plot(x,lap_3_splits, label="Lap 3", marker="x")
-            
-            self.ax.legend()
-            self.canvas.draw()
-
-        def clear_plot(self):
-            self.lap_1_splits = {}
-            self.lap_2_splits = {}
-            self.lap_3_splits = {}
-            self.x_plot = {}
-else:
-    class LivePlotWidget(tk.Frame):
-        def __init__(self, parent, *args, **kwargs):
-            super().__init__(parent, *args, **kwargs)
-        def toggle_time_mode(self):
-            pass
-        def update_plot(self,uig,time,split):
-            pass
 
 class App(tk.Tk):
     def __init__(self, loop, interval=1/60):
@@ -496,7 +281,7 @@ class App(tk.Tk):
         self.foundation_frame = tk.Frame(self.left_frame, bg=self['bg'], height=158)
         self.foundation_frame.grid(row=0, rowspan=5, column=5, stick="w")
 
-        self.graph_frame = LivePlotWidget(self)
+        self.graph_frame = LivePlotWidget(self, width=600, height=400)
         #self.graph_frame.grid(row=1, column=1, columnspan=2, sticky="nesw")
 
         self.left_frame.grid_columnconfigure(1, weight=1)
@@ -537,13 +322,14 @@ class App(tk.Tk):
             self.graph_frame.grid_forget()
         else:
             self.show_graph = True
-            self.graph_frame.grid(row=1, column=1, columnspan=2, sticky="nesw")
+            self.graph_frame.grid(row=1, column=1, columnspan=2)
         
     def clear_copy_buttons(self):
         for button in self.copy_button_list:
             button.destroy()
         self.copy_button_list = []
         self.pl.finished_list = []
+        set_focus_to_window("velocidrone")
 
     def clipboard_update(self, text, player):
         self.clipboard_clear()
