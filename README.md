@@ -9,11 +9,7 @@ or (to get rid of console window:) pythonw ui_main.py
 or run the release .exe
 
 ## requirements:
-psutil -> pip install psutil
-
-pywin32gui -> pip install pywin32
-
-websockets -> pip install websockets
+pip install -r requirements.txt
 
 <br></br>if you want to build the executable from source you also need pyinstaller -> pip instal pyinstaller -> pyinstaller VDSplitViewer.spec
 
