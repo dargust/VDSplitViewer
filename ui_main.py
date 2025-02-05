@@ -26,7 +26,7 @@ import re
 
 from VDSplitViewerClasses import PlayerList, LivePlotWidget
 
-VERSION = "v0.4.2.2"
+VERSION = "v0.4.2.3"
 
 bbox = (0,0,0,0)
 def callback(hwnd, extra):
@@ -152,7 +152,7 @@ class App(tk.Tk):
 
         self.withdraw()
         self.wm_title("VDSplitViewer")
-        x = int(bbox[0]+bbox[2]/2)-window_x//2
+        x = int(bbox[0]+bbox[2]/2)-window_x//2-400
         y = bbox[1]+45
         self.geometry("+"+str(x)+"+"+str(y))
 
@@ -214,34 +214,34 @@ class App(tk.Tk):
         self.style.configure('Q.TButton', font=font_tuple, background='#555500')
 
         self.left_frame = tk.Frame(self, width=window_x, height=window_y, bg=self['bg'])
-        self.left_frame.grid(rowspan=4, stick="ew")
+        self.left_frame.grid(rowspan=4, column=1, stick="ew")
         self.left_frame.grid_propagate(0)
 
         self.load_splits_button = ttk.Button(self.left_frame, text="Load", command=self.load_splits)
-        self.load_splits_button.grid(column=0, row=0, sticky="w")
+        self.load_splits_button.grid(column=1, row=0, sticky="w")
         self.save_splits_button = ttk.Button(self.left_frame, text="Save", command=self.save_splits, style='W.TButton')
-        self.save_splits_button.grid(column=0, row=1, sticky="w")
+        self.save_splits_button.grid(column=1, row=1, sticky="w")
 
         self.clear_splits_button = ttk.Button(self.left_frame, text="Clear", command=self.clear_splits)
-        self.clear_splits_button.grid(column=0, row=2, sticky="w")
+        self.clear_splits_button.grid(column=1, row=2, sticky="w")
 
         self.close_button = ttk.Button(self.left_frame, text="Close", command=self.close)
-        self.close_button.grid(column=3, row=0, sticky="e")
+        self.close_button.grid(column=4, row=0, sticky="e")
 
         self.open_file = ""
 
         self.open_file_label = ttk.Label(self.left_frame, text="Filename: NA")
-        self.open_file_label.grid(row=3, column=0, columnspan=2, sticky="w")
+        self.open_file_label.grid(row=3, column=1, columnspan=2, sticky="w")
         self.open_file_time = ttk.Label(self.left_frame, text="PB: -")
-        self.open_file_time.grid(row=4, column=0, columnspan=1, sticky="w")
+        self.open_file_time.grid(row=4, column=1, columnspan=1, sticky="w")
         self.autosave = tk.IntVar()
         self.autosave.set(1)
         self.auto_save_toggle = ttk.Checkbutton(self.left_frame, text="Autosave", variable=self.autosave)
-        self.auto_save_toggle.grid(row=1, column=3, sticky="e")
+        self.auto_save_toggle.grid(row=1, column=4, sticky="e")
         self.multiplayer = tk.IntVar()
         self.multiplayer.set(0)
         self.multiplayer_toggle = ttk.Checkbutton(self.left_frame, text="Multiplayer", variable=self.multiplayer, command=self.multiplayer_clicked)
-        self.multiplayer_toggle.grid(row=2, column=3, sticky="e")
+        self.multiplayer_toggle.grid(row=2, column=4, sticky="e")
         self.options = ["Single Player: Time Attack", "Multiplayer: VS First Place"]
         self.options_var = tk.StringVar()
         self.options_var.set(self.options[0])
@@ -250,17 +250,21 @@ class App(tk.Tk):
 
         self.logger.disabled = not self.log_enabled
 
-        self.copy_frame = tk.Frame(self, bg=self['bg'])
-        if self.race_director:
-            self.copy_frame.grid(row=0, column=2, stick="nw")
+        self.copy_frame_holder = tk.Frame(self, bg=self['bg'], width=400, padx=111)
+        self.copy_frame_holder.grid(row=0, column=0, rowspan=5, sticky="nw")
+        self.copy_frame = tk.Frame(self.copy_frame_holder, bg=self['bg'])
+        #if self.race_director:
+        self.copy_frame.grid(row=0, column=0, stick="nw")
+        if not self.race_director:
+            self.copy_frame.grid_forget()
 
         self.race_director_var = tk.IntVar()
         self.race_director_var.set(self.race_director)
         self.race_director_toggle = ttk.Checkbutton(self.left_frame, text="Race Director", variable=self.race_director_var, command=self.race_director_clicked)
-        self.race_director_toggle.grid(row=3, column=3, sticky="e")
+        self.race_director_toggle.grid(row=3, column=4, sticky="e")
 
         self.target_player_entry = ttk.Entry(self.left_frame, textvariable=self.target_player, justify="center")
-        self.target_player_entry.grid(row=4, column=3, columnspan=1)
+        self.target_player_entry.grid(row=4, column=4, columnspan=1)
 
         self.text = ttk.Label(self, text="Debug string")
         self.racetype_label = ttk.Label(self, text="Race type")
@@ -269,17 +273,17 @@ class App(tk.Tk):
         self.pad_frame = tk.Frame(self.left_frame, bg=self['bg'], height=self.OFFSET)#self['bg'], height=OFFSET)
         self.pad_frame.grid(columnspan=4, stick="ns")
         self.split_label = ttk.Label(self.left_frame, text="VDSplitViewer", font=f"Consolas {self.split_font_size} bold", anchor="s")
-        self.split_label.grid(columnspan=4, sticky="s")
+        self.split_label.grid(column=1, columnspan=4, sticky="swe")
 
         self.foundation_frame = tk.Frame(self.left_frame, bg=self['bg'], height=158)
-        self.foundation_frame.grid(row=0, rowspan=5, column=5, stick="w")
+        self.foundation_frame.grid(row=0, rowspan=5, column=6, stick="w")
 
         self.graph_frame = LivePlotWidget(self, width=600, height=400)
         #self.graph_frame.grid(row=1, column=1, columnspan=2, sticky="nesw")
 
-        self.left_frame.grid_columnconfigure(1, weight=1)
         self.left_frame.grid_columnconfigure(2, weight=1)
-        self.grid_columnconfigure(0, weight=1)
+        self.left_frame.grid_columnconfigure(3, weight=1)
+        self.grid_columnconfigure(1, weight=1)
 
         localip = self.find_local_ip()
         self.uri = ""
@@ -315,7 +319,7 @@ class App(tk.Tk):
             self.graph_frame.grid_forget()
         else:
             self.show_graph = True
-            self.graph_frame.grid(row=1, column=1, columnspan=2)
+            self.graph_frame.grid(row=1, column=2, columnspan=2)
         
     def clear_copy_buttons(self):
         for button in self.copy_button_list:
@@ -338,7 +342,7 @@ class App(tk.Tk):
 
     def show_multiplayer_target_options(self, show):
         if show:
-            self.multiplayer_target_options.grid(row=0, column=1, sticky="nw")
+            self.multiplayer_target_options.grid(row=0, column=2, sticky="nw")
         else:
             self.multiplayer_target_options.grid_forget()
     
@@ -348,7 +352,7 @@ class App(tk.Tk):
     def race_director_clicked(self):
         self.race_director = True if self.race_director_var.get() == 1 else False
         if self.race_director:
-            self.copy_frame.grid(row=0, column=2, stick="nw")
+            self.copy_frame.grid(row=0, column=0, stick="nw")
         else:
             self.copy_frame.grid_forget()
 
@@ -420,15 +424,15 @@ class App(tk.Tk):
     def show_buttons(self, show=True):
         if self.auto_hide:
             if show:
-                self.load_splits_button.grid(column=0, row=0, sticky="w")
-                self.save_splits_button.grid(column=0, row=1, sticky="w")
-                self.clear_splits_button.grid(column=0, row=2, sticky="w")
-                self.open_file_label.grid(row=3, column=0, columnspan=2, sticky="w")
-                self.open_file_time.grid(row=4, column=0, columnspan=1, sticky="w")
-                self.auto_save_toggle.grid(row=1, column=3, sticky="e")
-                self.multiplayer_toggle.grid(row=2, column=3, sticky="e")
-                self.race_director_toggle.grid(row=3, column=3, sticky="e")
-                self.target_player_entry.grid(row=4, column=3, columnspan=1)
+                self.load_splits_button.grid(column=1, row=0, sticky="w")
+                self.save_splits_button.grid(column=1, row=1, sticky="w")
+                self.clear_splits_button.grid(column=1, row=2, sticky="w")
+                self.open_file_label.grid(row=3, column=1, columnspan=2, sticky="w")
+                self.open_file_time.grid(row=4, column=1, columnspan=1, sticky="w")
+                self.auto_save_toggle.grid(row=1, column=4, sticky="e")
+                self.multiplayer_toggle.grid(row=2, column=4, sticky="e")
+                self.race_director_toggle.grid(row=3, column=4, sticky="e")
+                self.target_player_entry.grid(row=4, column=4, columnspan=1)
             else:
                 self.load_splits_button.grid_forget()
                 self.save_splits_button.grid_forget()
