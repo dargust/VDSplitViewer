@@ -14,7 +14,7 @@ import asyncio
 import websockets
 import json
 import psutil
-import win32gui
+import win32gui # type: ignore
 import pickle
 import os
 import logging
@@ -22,11 +22,14 @@ import sys
 import requests
 import tkinter.ttk as ttk
 import re
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from math import nan
 
 VERSION = "v0.4.0.4"
+
+graphing = False
+if graphing:
+    import matplotlib.pyplot as plt
+    from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+    from math import nan
 
 bbox = (0,0,0,0)
 def callback(hwnd, extra):
@@ -256,90 +259,98 @@ class PlayerList():
     def set_player_splits(self, player_name, new_splits):
         i = self.get_index_of_player(player_name)
         self.list[i].comparison_splits = new_splits
+if graphing:
+    class LivePlotWidget(tk.Frame):
+        def __init__(self, parent, *args, **kwargs):
+            super().__init__(parent, *args, **kwargs)
+            
+            # Create a figure and axis with specified width and height
+            self.fig, self.ax = plt.subplots(figsize=(7, 1))
+            #self.fig.set_facecolor('#483269')
+            self.canvas = FigureCanvasTkAgg(self.fig, master=self)
+            self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+            
+            # Control frame
+            control_frame = ttk.Frame(self)
+            control_frame.pack(side=tk.BOTTOM, fill=tk.X)
+            
+            self.num_plots_var = tk.IntVar(value=3)
+            self.plot_entry = ttk.Entry(control_frame, textvariable=self.num_plots_var, width=5)
+            self.plot_entry.pack(side=tk.LEFT, padx=5)
+            
+            self.update_button = ttk.Button(control_frame, text="Change to time", command=self.toggle_time_mode)
+            self.update_button.pack(side=tk.LEFT, padx=5)
 
-class LivePlotWidget(tk.Frame):
-    def __init__(self, parent, *args, **kwargs):
-        super().__init__(parent, *args, **kwargs)
-        
-        # Create a figure and axis with specified width and height
-        self.fig, self.ax = plt.subplots(figsize=(7, 1))
-        #self.fig.set_facecolor('#483269')
-        self.canvas = FigureCanvasTkAgg(self.fig, master=self)
-        self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-        
-        # Control frame
-        control_frame = ttk.Frame(self)
-        control_frame.pack(side=tk.BOTTOM, fill=tk.X)
-        
-        self.num_plots_var = tk.IntVar(value=3)
-        self.plot_entry = ttk.Entry(control_frame, textvariable=self.num_plots_var, width=5)
-        self.plot_entry.pack(side=tk.LEFT, padx=5)
-        
-        self.update_button = ttk.Button(control_frame, text="Change to time", command=self.toggle_time_mode)
-        self.update_button.pack(side=tk.LEFT, padx=5)
+            #self.ax.set_facecolor('#483269')
 
-        #self.ax.set_facecolor('#483269')
+            self.lap_1_splits = {}
+            self.lap_2_splits = {}
+            self.lap_3_splits = {}
+            self.x_plot = {}
+            self.highest_gate = 0
 
-        self.lap_1_splits = {}
-        self.lap_2_splits = {}
-        self.lap_3_splits = {}
-        self.x_plot = {}
-        self.highest_gate = 0
-
-        self.time_mode = False
-        
-        #self.update_plot('1-1', 2.2, 0.01)  # Initial plot
-        #self.update_plot('1-2', 2.6, -0.3)
-    
-    def toggle_time_mode(self):
-        if self.time_mode:
             self.time_mode = False
-            self.update_button.config(text="Change to time")
-        else:
-            self.time_mode = True
-            self.update_button.config(text="Change to gates")
-
-    def update_plot(self, uig, time, split):
-        self.ax.clear()
-        num_plots = self.num_plots_var.get()
-        lap, gate = uig.split("-")
-        if lap == '1':
-            self.lap_1_splits[gate] = split
-        elif lap == '2':
-            self.lap_2_splits[gate] = split
-        elif lap == '3':
-            self.lap_3_splits[gate] = split
-        if self.time_mode:
-            self.x_plot[uig] = time
-        else:
-            self.x_plot[uig] = int(gate)
-        x = [v for k,v in self.x_plot.items()]
-        N = len(x)
-        pb_splits = [0 for i in x]
+            
+            #self.update_plot('1-1', 2.2, 0.01)  # Initial plot
+            #self.update_plot('1-2', 2.6, -0.3)
         
-        self.ax.plot(x,pb_splits, label="PB")
-        lap_1_splits = [v for k,v in self.lap_1_splits.items()]
-        lap_2_splits = [nan] * len(lap_1_splits)
-        lap_1_splits += [nan] * (N - len(lap_1_splits))
-        lap_2_splits += [v for k,v in self.lap_2_splits.items()]
-        a = len(lap_2_splits)
-        lap_2_splits += [nan] * (N - len(lap_2_splits))
-        lap_3_splits = [nan] * a
-        lap_3_splits += [v for k,v in self.lap_3_splits.items()]
-        lap_3_splits += [nan] * (N - len(lap_3_splits))
-        #print("len x: {}, len y: {}, lap 1: {}, lap 2: {}, lap 3: {}".format(len(x),len(pb_splits),len(lap_1_splits),len(lap_2_splits),len(lap_3_splits)))
-        self.ax.plot(x,lap_1_splits, label="Lap 1", marker="x")
-        self.ax.plot(x,lap_2_splits, label="Lap 2", marker="x")
-        self.ax.plot(x,lap_3_splits, label="Lap 3", marker="x")
-        
-        self.ax.legend()
-        self.canvas.draw()
+        def toggle_time_mode(self):
+            if self.time_mode:
+                self.time_mode = False
+                self.update_button.config(text="Change to time")
+            else:
+                self.time_mode = True
+                self.update_button.config(text="Change to gates")
 
-    def clear_plot(self):
-        self.lap_1_splits = {}
-        self.lap_2_splits = {}
-        self.lap_3_splits = {}
-        self.x_plot = {}
+        def update_plot(self, uig, time, split):
+            self.ax.clear()
+            num_plots = self.num_plots_var.get()
+            lap, gate = uig.split("-")
+            if lap == '1':
+                self.lap_1_splits[gate] = split
+            elif lap == '2':
+                self.lap_2_splits[gate] = split
+            elif lap == '3':
+                self.lap_3_splits[gate] = split
+            if self.time_mode:
+                self.x_plot[uig] = time
+            else:
+                self.x_plot[uig] = int(gate)
+            x = [v for k,v in self.x_plot.items()]
+            N = len(x)
+            pb_splits = [0 for i in x]
+            
+            self.ax.plot(x,pb_splits, label="PB")
+            lap_1_splits = [v for k,v in self.lap_1_splits.items()]
+            lap_2_splits = [nan] * len(lap_1_splits)
+            lap_1_splits += [nan] * (N - len(lap_1_splits))
+            lap_2_splits += [v for k,v in self.lap_2_splits.items()]
+            a = len(lap_2_splits)
+            lap_2_splits += [nan] * (N - len(lap_2_splits))
+            lap_3_splits = [nan] * a
+            lap_3_splits += [v for k,v in self.lap_3_splits.items()]
+            lap_3_splits += [nan] * (N - len(lap_3_splits))
+            #print("len x: {}, len y: {}, lap 1: {}, lap 2: {}, lap 3: {}".format(len(x),len(pb_splits),len(lap_1_splits),len(lap_2_splits),len(lap_3_splits)))
+            self.ax.plot(x,lap_1_splits, label="Lap 1", marker="x")
+            self.ax.plot(x,lap_2_splits, label="Lap 2", marker="x")
+            self.ax.plot(x,lap_3_splits, label="Lap 3", marker="x")
+            
+            self.ax.legend()
+            self.canvas.draw()
+
+        def clear_plot(self):
+            self.lap_1_splits = {}
+            self.lap_2_splits = {}
+            self.lap_3_splits = {}
+            self.x_plot = {}
+else:
+    class LivePlotWidget(tk.Frame):
+        def __init__(self, parent, *args, **kwargs):
+            super().__init__(parent, *args, **kwargs)
+        def toggle_time_mode(self):
+            pass
+        def update_plot(self,uig,time,split):
+            pass
 
 class App(tk.Tk):
     def __init__(self, loop, interval=1/60):
@@ -573,6 +584,7 @@ class App(tk.Tk):
             else:
                 file = open(filename, "rb")
             file_splits = pickle.load(file)
+            print(file_splits)
             self.pl.set_player_splits(self.target_player.get(), file_splits)
             self.pb = file_splits[[*file_splits.keys()][-1]]
             self.open_file_time.config(text=f"PB: {self.pb}s")
