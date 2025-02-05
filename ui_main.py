@@ -23,13 +23,14 @@ import requests
 import tkinter.ttk as ttk
 import re
 
-VERSION = "v0.4.0.4"
+VERSION = "v0.4.0.5"
 
 graphing = False
 if graphing:
-    import matplotlib.pyplot as plt
-    from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-    from math import nan
+    #import matplotlib.pyplot as plt
+    #from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+    #from math import nan
+    pass
 
 bbox = (0,0,0,0)
 def callback(hwnd, extra):
