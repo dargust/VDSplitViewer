@@ -26,14 +26,7 @@ import re
 
 from VDSplitViewerClasses import PlayerList, LivePlotWidget
 
-VERSION = "v0.4.1.5"
-
-graphing = False
-if graphing:
-    #import matplotlib.pyplot as plt
-    #from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-    #from math import nan
-    pass
+VERSION = "v0.4.2.2"
 
 bbox = (0,0,0,0)
 def callback(hwnd, extra):
