@@ -602,6 +602,7 @@ class App(tk.Tk):
                 self.open_file_label.config(text=os.path.basename(file.name))
             else:
                 file = open(filename, "wb")
+            print(self.pl.get_player_splits(self.target_player.get()))
             pickle.dump(self.pl.get_player_splits(self.target_player.get()), file)
             self.style.configure('W.TButton', background=self.default_background)
 
