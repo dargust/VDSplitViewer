@@ -212,6 +212,7 @@ class App(tk.Tk):
         self.default_background = self.style.lookup('TButton', 'background')
         self.style.configure('W.TButton', font=font_tuple, background=self.default_background)
         self.style.configure('Q.TButton', font=font_tuple, background='#555500')
+        self.style.configure('C.TButton', font=font_tuple, background=self.default_background, justify="right")
 
         self.left_frame = tk.Frame(self, width=window_x, height=window_y, bg=self['bg'])
         self.left_frame.grid(rowspan=4, column=1, stick="ew")
@@ -424,6 +425,7 @@ class App(tk.Tk):
     def show_buttons(self, show=True):
         if self.auto_hide:
             if show:
+                self.close_button.config(text="Close")
                 self.load_splits_button.grid(column=1, row=0, sticky="w")
                 self.save_splits_button.grid(column=1, row=1, sticky="w")
                 self.clear_splits_button.grid(column=1, row=2, sticky="w")
@@ -434,6 +436,7 @@ class App(tk.Tk):
                 self.race_director_toggle.grid(row=3, column=4, sticky="e")
                 self.target_player_entry.grid(row=4, column=4, columnspan=1)
             else:
+                self.close_button.config(text="x")
                 self.load_splits_button.grid_forget()
                 self.save_splits_button.grid_forget()
                 self.clear_splits_button.grid_forget()
