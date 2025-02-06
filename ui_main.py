@@ -26,7 +26,7 @@ import re
 
 from VDSplitViewerClasses import PlayerList, LivePlotWidget
 
-VERSION = "v0.4.3.1"
+VERSION = "v0.4.3.2"
 print_raws = False
 
 bbox = (0,0,0,0)
