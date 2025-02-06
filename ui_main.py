@@ -26,7 +26,7 @@ import re
 
 from VDSplitViewerClasses import PlayerList, LivePlotWidget
 
-VERSION = "v0.4.2.3"
+VERSION = "v0.4.3.1"
 
 bbox = (0,0,0,0)
 def callback(hwnd, extra):
@@ -239,6 +239,10 @@ class App(tk.Tk):
         self.autosave.set(1)
         self.auto_save_toggle = ttk.Checkbutton(self.left_frame, text="Autosave", variable=self.autosave)
         self.auto_save_toggle.grid(row=1, column=4, sticky="e")
+        self.autohide = tk.IntVar()
+        self.autohide.set(int(self.auto_hide))
+        self.auto_hide_toggle = ttk.Checkbutton(self.left_frame, text="Autohide", variable=self.autohide, command=self.toggle_auto_hide)
+        self.auto_hide_toggle.grid(row=2, column=3, sticky="e")
         self.multiplayer = tk.IntVar()
         self.multiplayer.set(0)
         self.multiplayer_toggle = ttk.Checkbutton(self.left_frame, text="Multiplayer", variable=self.multiplayer, command=self.multiplayer_clicked)
@@ -313,6 +317,9 @@ class App(tk.Tk):
         self.show_graph = False
 
         self.deiconify()
+
+    def toggle_auto_hide(self):
+        self.auto_hide = self.autohide.get()
 
     def toggle_graph(self, event):
         if self.show_graph:
