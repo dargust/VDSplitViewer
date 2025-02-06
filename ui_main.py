@@ -27,6 +27,7 @@ import re
 from VDSplitViewerClasses import PlayerList, LivePlotWidget
 
 VERSION = "v0.4.3.1"
+print_raws = False
 
 bbox = (0,0,0,0)
 def callback(hwnd, extra):
@@ -68,6 +69,9 @@ async def send_heartbeat(websocket):
     except Exception as e:
         print(f"Error sending heartbeat: {e}")
 
+async def send_message(websocket, message):
+    await websocket.send(message.encode())
+
 async def read_websocket(app):
     pl = app.pl # stores all the split times and data for all the players found or loaded
     first_run = True
@@ -75,11 +79,14 @@ async def read_websocket(app):
     while True:
         try:
             async with websockets.connect(app.uri, ping_interval=None) as websocket:
+                app.websocket_container = websocket
                 if first_run:
                     await start_fake_messages(websocket)
                     first_run = False
                 heartbeat_task = asyncio.create_task(send_heartbeat(websocket))
                 async for message in websocket:
+                    if print_raws:
+                        print(message)
                     if message == "done":
                         await websocket.send("stop")
                         first_run = False
@@ -90,9 +97,11 @@ async def read_websocket(app):
                     try:
                         f = json.loads(message)
                         if "racedata" in f:
+                            app.last_data['racedata'] = f['racedata']
                             for pilot,data in f['racedata'].items():
                                 pl.process_racedata(pilot, data, app)
                         elif "countdown" in f:
+                            app.last_data['countdown'] = f['countdown']
                             countValue = f['countdown']['countValue']
                             if countValue == "0":
                                 countValue = "Go!"
@@ -101,6 +110,7 @@ async def read_websocket(app):
                             message = f"Countdown: {countValue}"
                             app.show_buttons(False)
                         elif "racestatus" in f:
+                            app.last_data['racestatus'] = f['racestatus']
                             raceAction = f['racestatus']['raceAction']
                             if raceAction == "race finished":
                                 app.countdown_label.config(text="Stopped")
@@ -108,12 +118,13 @@ async def read_websocket(app):
                             app.racestatus_label.config(text=raceAction)
                             message = f"RaceStatus update: {raceAction}"
                         elif "racetype" in f:
+                            app.last_data['racetype'] = f['racetype']
                             raceMode = f['racetype']['raceMode']
                             raceFormat = f['racetype']['raceFormat']
                             raceLaps = f['racetype']['raceLaps']
                             app.racetype_label.config(text=f"{raceMode}, {raceFormat}, Laps: {raceLaps}")
                         elif "spectatorChange" in f:
-                            pass
+                            app.last_data['spectatorChange'] = f['spectatorChange']
                         else:
                             print("unhandled message:", f)
                     except json.JSONDecodeError as e:
@@ -131,12 +142,16 @@ async def read_websocket(app):
             await asyncio.sleep(1) # if something goes wrong with the connection, don't spam connection attempts
             print(e)
 
+
 class App(tk.Tk):
     def __init__(self, loop, interval=1/60):
         super().__init__()
 
         win32gui.EnumWindows(callback, None)
         #print(bbox)
+
+        self.websocket_container = None
+        self.last_data = {}
 
         self.loop = loop
         self.protocol("WM_DELETE_WINDOW", self.close) # unsure if necessary 
@@ -243,6 +258,8 @@ class App(tk.Tk):
         self.autohide.set(int(self.auto_hide))
         self.auto_hide_toggle = ttk.Checkbutton(self.left_frame, text="Autohide", variable=self.autohide, command=self.toggle_auto_hide)
         self.auto_hide_toggle.grid(row=2, column=3, sticky="e")
+        self.start_stop_race = ttk.Button(self.left_frame, text="Start/Stop Race", command=self.start_stop_race_message)
+        self.start_stop_race.grid(row=2, column=2, sticky="w")
         self.multiplayer = tk.IntVar()
         self.multiplayer.set(0)
         self.multiplayer_toggle = ttk.Checkbutton(self.left_frame, text="Multiplayer", variable=self.multiplayer, command=self.multiplayer_clicked)
@@ -317,6 +334,34 @@ class App(tk.Tk):
         self.show_graph = False
 
         self.deiconify()
+
+    def start_stop_race_message(self):
+        '''
+        viable commands:
+        '{"command":"startrace"}'
+        '{"command":"abortrace"}'
+        '{"command":"activate", "pilots":[123,456,789]}'
+        '''
+
+        last_race_action = None
+        try:
+            last_race_action = self.last_data['racestatus']['raceAction']
+        except:
+            pass
+        print(f"last raceAction seen: {last_race_action}")
+
+        if self.websocket_container:
+            if last_race_action == None or last_race_action == "race finished" or last_race_action == "race aborted":
+                message = '{"command": "startrace"}'
+            elif last_race_action == "start":
+                message = '{"command": "abortrace"}'
+            else:
+                message = 'unknown'
+            print(f"sending: {message}")
+            self.tasks.append(self.loop.create_task(send_message(self.websocket_container, message)))
+        else:
+            print("no websocket to send message on")
+        set_focus_to_window("velocidrone")
 
     def toggle_auto_hide(self):
         self.auto_hide = self.autohide.get()
@@ -433,6 +478,8 @@ class App(tk.Tk):
         if self.auto_hide:
             if show:
                 self.close_button.config(text="Close")
+                self.auto_hide_toggle.grid(row=2, column=3, sticky="e")
+                self.start_stop_race.grid(row=2, column=2, sticky="w")
                 self.load_splits_button.grid(column=1, row=0, sticky="w")
                 self.save_splits_button.grid(column=1, row=1, sticky="w")
                 self.clear_splits_button.grid(column=1, row=2, sticky="w")
@@ -444,6 +491,8 @@ class App(tk.Tk):
                 self.target_player_entry.grid(row=4, column=4, columnspan=1)
             else:
                 self.close_button.config(text="x")
+                self.auto_hide_toggle.grid_forget()
+                self.start_stop_race.grid_forget()
                 self.load_splits_button.grid_forget()
                 self.save_splits_button.grid_forget()
                 self.clear_splits_button.grid_forget()
