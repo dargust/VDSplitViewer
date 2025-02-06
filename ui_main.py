@@ -63,14 +63,14 @@ async def send_heartbeat(websocket):
     # keep websocket connection alive
     try:
         while True:
-            #print("sending heartbeat")
+            print("sending heartbeat")
             await asyncio.sleep(10)
             await websocket.send("heartbeat")
     except Exception as e:
         print(f"Error sending heartbeat: {e}")
 
 async def send_message(websocket, message):
-    await websocket.send(message.encode())
+    await websocket.send(message)
 
 async def read_websocket(app):
     pl = app.pl # stores all the split times and data for all the players found or loaded
