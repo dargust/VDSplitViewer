@@ -80,7 +80,7 @@ class PlayerList():
                         #print("latest personal time:", new_time)
                         split = new_time - old_time
                     if not finished:
-                        app.graph_frame.update_plot(uig, new_time, split)
+                        app.graph_frame.update_plot(uig, new_time, split, plot_time=True)
                     colour = self.number_to_hex_color(split)
                     if split <= 0.0: colour = "light green"
                     if split <-1.5: colour = "green"
@@ -88,7 +88,7 @@ class PlayerList():
                     #print("old time:", old_time, "new time:", new_time, "diff:", split)
                     app.split_label.config(text="{}{:.3f}".format(sign, split), foreground=colour)
                 except Exception as e:
-                    print(e)
+                    print(f"no time loaded for gate: {e}    ", end="\r")
                     app.split_label.config(text="{:.3f}".format(float(time)), foreground="WHITE")
                 if finished:
                     if app.target_player.get() == player_name:
@@ -107,7 +107,7 @@ class PlayerList():
                                 app.save_splits(app.open_file)
 
                     except KeyError as e:
-                        print(e, "no comparison found, overwriting splits...")
+                        print(f"no comparison found, makeing new splits: {time}...")
                         #app.save_splits_button.configure(background="yellow")
                         app.style.configure('W.TButton', background="#555500")
                         self.list[i].comparison_splits = self.list[i].splits.copy()
@@ -156,7 +156,7 @@ class LivePlotWidget(tk.Canvas):
         self.colour_list = ["red","green","blue","magenta","yellow","cyan","purple", "pink"]
         self.current_colour_index = 0
 
-    def update_plot(self, uig, time, split):
+    def update_plot(self, uig, time, split, plot_time=False):
         if not split:
             return
 
@@ -174,11 +174,16 @@ class LivePlotWidget(tk.Canvas):
         self.create_line(50, self.height - 50, self.width - 50, self.height - 50, arrow=tk.LAST)  # X-axis
         self.create_line(50, self.height - 50, 50, 50, arrow=tk.LAST)    # Y-axis
         
-        multiplied_gate = current_gate + ((current_lap - 1) * self.highest_gate)
+        x_plot = current_gate
+        y_plot = split
+        if plot_time:
+            multiplied_gate = current_gate + ((current_lap - 1) * self.highest_gate)
+            x_plot = multiplied_gate
+            y_plot = time
         if self.split_index == self.last_split_index or self.split_index == 0:
-            self.splits[self.split_index] += [(current_gate,split)]
+            self.splits[self.split_index] += [(x_plot,y_plot)]
         else:
-            self.splits.append([(current_gate,split)])
+            self.splits.append([(x_plot,y_plot)])
         
         total_min_x = 1.0e100
         total_max_x = -1.0e100

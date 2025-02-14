@@ -26,7 +26,7 @@ import re
 
 from VDSplitViewerClasses import PlayerList, LivePlotWidget
 
-VERSION = "v0.4.3.2"
+VERSION = "v0.4.4.1"
 print_raws = False
 
 bbox = (0,0,0,0)
@@ -63,7 +63,7 @@ async def send_heartbeat(websocket):
     # keep websocket connection alive
     try:
         while True:
-            print("sending heartbeat")
+            #print("sending heartbeat")
             await asyncio.sleep(10)
             await websocket.send("heartbeat")
     except Exception as e:
@@ -85,14 +85,14 @@ async def read_websocket(app):
                     first_run = False
                 heartbeat_task = asyncio.create_task(send_heartbeat(websocket))
                 async for message in websocket:
-                    if print_raws:
-                        print(message)
                     if message == "done":
                         await websocket.send("stop")
                         first_run = False
                         break
                     if not message == last_message:
                         app.logger.info(message)
+                        if print_raws:
+                            print(message)
                     last_message = message
                     try:
                         f = json.loads(message)
@@ -105,7 +105,7 @@ async def read_websocket(app):
                             countValue = f['countdown']['countValue']
                             if countValue == "0":
                                 countValue = "Go!"
-                                app.graph_frame.clear_plot()
+                                #app.graph_frame.clear_plot()
                             app.split_label.config(text=countValue, foreground="WHITE")
                             message = f"Countdown: {countValue}"
                             app.show_buttons(False)
@@ -227,6 +227,7 @@ class App(tk.Tk):
         self.default_background = self.style.lookup('TButton', 'background')
         self.style.configure('W.TButton', font=font_tuple, background=self.default_background)
         self.style.configure('Q.TButton', font=font_tuple, background='#555500')
+        self.style.configure('E.TButton', font=font_tuple, background='#005500')
         self.style.configure('C.TButton', font=font_tuple, background=self.default_background, justify="right")
 
         self.left_frame = tk.Frame(self, width=window_x, height=window_y, bg=self['bg'])
@@ -331,6 +332,9 @@ class App(tk.Tk):
         self.pb = "-"
 
         self.bind("<Control-g>", self.toggle_graph)
+        self.bind("<Control-r>", self.toggle_raw_message_output)
+        self.bind("<Control-c>", self.clear_graph)
+
         self.show_graph = False
 
         self.deiconify()
@@ -373,6 +377,16 @@ class App(tk.Tk):
         else:
             self.show_graph = True
             self.graph_frame.grid(row=1, column=2, columnspan=2)
+    
+    def toggle_raw_message_output(self, event):
+        global print_raws
+        if print_raws:
+            print_raws = False
+        else:
+            print_raws = True
+    
+    def clear_graph(self, event):
+        self.graph_frame.clear_plot()
         
     def clear_copy_buttons(self):
         for button in self.copy_button_list:
@@ -421,7 +435,7 @@ class App(tk.Tk):
             else:
                 file = open(filename, "rb")
             file_splits = pickle.load(file)
-            print(file_splits)
+            print(f"split times loaded from file: {file_splits}")
             self.pl.set_player_splits(self.target_player.get(), file_splits)
             self.pb = file_splits[[*file_splits.keys()][-1]]
             self.open_file_time.config(text=f"PB: {self.pb}s")
@@ -438,7 +452,7 @@ class App(tk.Tk):
                 self.open_file_label.config(text=os.path.basename(file.name))
             else:
                 file = open(filename, "wb")
-            print(self.pl.get_player_splits(self.target_player.get()))
+            print(f"split times written to file: {self.pl.get_player_splits(self.target_player.get())}")
             pickle.dump(self.pl.get_player_splits(self.target_player.get()), file)
             self.style.configure('W.TButton', background=self.default_background)
 
